@@ -3,6 +3,9 @@ The MIT License
 Copyright (c) 2007 Andy Smith
 		http://code.google.com/p/oauth/source/browse/#svn/code/php
 
+Copyright (c) 2007-2008 Mediamatic Lab
+		http://code.google.com/p/oauth-php/
+
 Copyright (c) 2009 Ingmar Runge
 		http://code.google.com/p/php-proauth/
 

@@ -34,3 +34,52 @@ abstract class OAuthSignatureMethod
 			strcmp($correct_string, $signature_string) == 0);
 	}
 }
+
+
+class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
+{
+	public function getName()
+	{
+		return 'HMAC-SHA1';
+	}
+
+	/**
+	 * @author Marc Worrell <marcw@pobox.com>
+	 * @source http://code.google.com/p/oauth-php/source/browse/trunk/library/signature_method/OAuthSignatureMethod_HMAC_SHA1.php
+	 **/
+	protected function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	{
+		$base_string = $req->getSignatureBaseString();
+
+		$key_parts = array(
+			$consumer->getSecret(),
+			is_object($token) ? $token->getSecret() : ''
+		);
+
+		$key_parts = OAuthUtils::urlEncode($key_parts);
+		$key = implode('&', $key_parts);
+
+		if(function_exists('hash_hmac'))
+		{
+			$hmac = hash_hmac('sha1', $base_string, $key, true);
+		}
+		else
+		{
+			$blocksize = 64;
+
+			if(strlen($key) > $blocksize)
+			{
+				$key = pack('H*', sha1($key));
+			}
+
+			$key = str_pad($key, $blocksize, chr(0x00));
+			$ipad = str_repeat(chr(0x36), $blocksize);
+			$opad = str_repeat(chr(0x5c), $blocksize);
+
+			$hmac = pack('H*', sha1(($key ^ $opad) . pack('H*', sha1(($key ^ $ipad) . $base_string))));
+		}
+
+		return base64_encode($hmac);
+	}
+}
+
