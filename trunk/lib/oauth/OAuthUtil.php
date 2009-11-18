@@ -5,6 +5,11 @@ class OAuthException extends Exception
 {
 	protected $http_response_code;
 
+	/**
+	 * Standard constructor. The http_response_code should be set
+	 * according to section 10 of the OAuth Core specs.
+	 * @param int http_response_code
+	 **/
 	public function __construct($error_msg, $http_response_code = 500)
 	{
 		parent::__construct($error_msg);
@@ -13,8 +18,8 @@ class OAuthException extends Exception
 	}
 
 	/**
-	 * Sends the HTTP response header, ideally as per OAuth Core specs
-	 * section 10.
+	 * Sends the HTTP response header. Does *not* output the error description.
+	 * Use getMessage() to get the error message.
 	 **/
 	public function sendHttpResponseHeader()
 	{

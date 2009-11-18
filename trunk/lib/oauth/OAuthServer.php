@@ -4,11 +4,16 @@ class OAuthServer
 {
 	protected $backend;
 	protected $user_data = NULL;
-	protected $signature_methods;
+	protected $signature_methods = array();
 
 	public function __construct(Backend $backend)
 	{
 		$this->backend = $backend;
+	}
+
+	public function addSignatureMethod(OAuthSignatureMethod $method)
+	{
+		$signature_methods[strtoupper($method->getName())] = $method;
 	}
 
 	/**
@@ -35,17 +40,32 @@ class OAuthServer
 
 		if(!$consumer_key)
 		{
-			throw new OAuthException('Invalid consumer key.');
+			throw new OAuthException('Invalid consumer key.', 401);
 		}
 
 		$consumer = $this->backend->getConsumerByKey($consumer_key);
 
 		if(!$consumer)
 		{
-			throw new OAuthException('Consumer not found.');
+			throw new OAuthException('Consumer not found.', 401);
 		}
 
 		return $consumer;
+	}
+
+	/**
+	 * For internal use, returns the appropriate OAuthSignatureMethod instance.
+	 **/
+	protected function getSignatureMethod(OAuthRequest $req)
+	{
+		$method = strtoupper($req->getSignatureMethod());
+
+		if(!isset($this->signature_methods[$method]))
+		{
+			throw new OAuthException('Signature method "' . $signature_method . '" not supported.', 400);
+		}
+
+		return $this->signature_methods[$signature_method];
 	}
 
 	/**
@@ -57,11 +77,16 @@ class OAuthServer
 
 		if($this->backend->checkNonceAndTimeStamp($nonce, $timestamp, $consumer, $token))
 		{
-			
+			$sig_method = $this->getSignatureMethod($req);
+
+			if(!$sig_method->checkSignature($req, $consumer, $token))
+			{
+				throw new OAuthException('Invalid signature.', 401);
+			}
 		}
 		else
 		{
-			throw new OAuthException('Invalid nonce, timestamp or token.');
+			throw new OAuthException('Invalid nonce, timestamp or token.', 401);
 		}
 	}
 
@@ -225,3 +250,40 @@ class OAuthServerRequest extends OAuthRequest
 		// whew, done.
 	}
 }
+
+
+abstract class OAuthSignatureMethod
+{
+	/**
+	 * Must return the name of the method, e.g. HMAC-SHA1 or PLAINTEXT.
+	 * @return string
+	 **/
+	abstract public function getName();
+	/**
+	 * Must build the signature string from the given parameters and return it.
+	 * @return string
+	 **/
+	abstract protected function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token);
+
+	/**
+	 * Compares the given $signature_string with the one that is defined by req, consumer and token.
+	 * If $signature_string is NULL, the oauth_signature parameter from $req will be used.
+	 * @return bool
+	 **/
+	public function checkSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token, $signature_string = NULL)
+	{
+		$correct_string = $this->buildSignature($req, $consumer, $token);
+
+		if(is_null($signature_string))
+		{
+			$signature_string = $req->getSignatureParameter();
+		}
+
+		// extra checks to make sure we never allow obviously faulty signature strings:
+		return (is_string($signature_string) &&
+			is_string($correct_string) &&
+			!empty($signature_string) &&
+			strcmp($correct_string, $signature_string) == 0);
+	}
+}
+
