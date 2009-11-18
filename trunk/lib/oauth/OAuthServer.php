@@ -6,7 +6,7 @@ class OAuthServer
 	protected $user_data = NULL;
 	protected $signature_methods = array();
 
-	public function __construct(Backend $backend)
+	public function __construct(OAuthServerBackend $backend)
 	{
 		$this->backend = $backend;
 	}
