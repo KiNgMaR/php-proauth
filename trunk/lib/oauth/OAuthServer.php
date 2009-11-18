@@ -1,8 +1,6 @@
 <?php
 
-namespace OAuth;
-
-class Server
+class OAuthServer
 {
 	protected $backend;
 	protected $user_data = NULL;
@@ -73,7 +71,7 @@ class Server
 	 **/
 	public function requestToken()
 	{
-		$req = OAuthRequest::createFromPageRequest();
+		$req = new OAuthServerRequest();
 		$this->checkOAuthVersion($req);
 	}
 
@@ -110,5 +108,120 @@ class Server
 	public function verifyApiCall()
 	{
 	
+	}
+}
+
+
+class OAuthServerRequest extends OAuthRequest
+{
+	public function __construct()
+	{
+		parent::__construct();
+
+		// Determine HTTP method...
+		$this->http_method = OAuthUtils::getIfSet($_SERVER, 'REQUEST_METHOD');
+
+		if(empty($this->http_method))
+		{
+			// :TODO: find out if this actually happens and how bad the fallback is.
+			$this->http_method = (count($_POST) > 0 ? 'POST' : 'GET');
+		}
+
+
+		// Determine request URL:
+		$host = OAuthUtils::getIfSet($_SERVER, 'HTTP_HOST');
+
+		if(empty($host))
+		{
+			throw new OAuthException('The requesting client did not send the HTTP Host header which is required by this implementation.');
+		}
+
+		$scheme = (OAuthUtils::getIfSet($_SERVER, 'HTTPS', 'off') === 'on' ? 'https' : 'http');
+
+		$port = (int)$_SERVER['SERVER_PORT'];
+
+		$this->request_url = $scheme . '://' . $host .
+			($port == ($scheme == 'https' ?  443 : 80) ? '' : ':' . $port) .
+			$_SERVER['REQUEST_URI'];
+
+
+		// extract oauth parameters from the Authorization
+		// HTTP header. If present, these take precedence over
+		// GET and POST parameters.
+		$header_parameters = OAuthUtils::getPageRequestAuthorizationHeader();
+
+		if(!empty($header_parameters))
+		{
+			$header_parameters = OAuthUtils::parseHttpAuthorizationHeader($header_parameters);
+			$realm = '';
+
+			if(is_array($header_parameters) && count($header_parameters) > 0)
+			{
+				$realm = OAuthUtils::getIfSet($header_parameters, 'realm');
+
+				$this->params_oauth = $header_parameters;
+			}
+
+			/* :TODO: Check and/or store the realm parameter here... */
+		}
+
+		// The next paragraphs implement section 5.2 from the OAuth Core specs.
+		// ... at least mostly... :TODO: we do not care about the Content-Type (application/x-www-form-urlencoded)
+		// and we rely on PHP to parse the $_POST and $_GET parameters for us.
+		// This *could* break in some weird cases, where URL decoding is done very strangely...
+		// ... but that's okay for now!
+
+		// extract POST parameters...
+		$this->params_post = array();
+
+		foreach($_POST as $key => $value)
+		{
+			if(OAuthUtils::isKnownOAuthParameter($key))
+			{
+				if(!isset($this->params_oauth[$key]))
+				{
+					$this->params_oauth[$key] = $value;
+					unset($_POST[$key]);
+				}
+				else
+				{
+					throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.');
+				}
+			}
+			else
+			{
+				$this->params_post[$key] = $value;
+			}
+		}
+
+		// extract GET parameters...
+		$this->params_get = array();
+
+		foreach($_GET as $key => $value)
+		{
+			if(OAuthUtils::isKnownOAuthParameter($key))
+			{
+				if(!isset($this->params_oauth[$key]))
+				{
+					$this->params_oauth[$key] = $value;
+					unset($_GET[$key]);
+				}
+				else
+				{
+					throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.');
+				}
+			}
+			else
+			{
+				if(isset($this->params_post[$key]))
+				{
+					throw new OAuthException('We do not support GET and POST parameters with the same name.');
+				}
+
+				$this->params_get[$key] = $value;
+			}
+		}
+
+		// whew, done.
 	}
 }
