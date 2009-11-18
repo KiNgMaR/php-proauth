@@ -83,12 +83,31 @@ class OAuthRequest
 		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_consumer_key', false);
 	}
 
+	/**
+	 * Fills out the nonce and timestamp variables and returns true if both are non-empty.
+	 **/
 	public function getNonceAndTimeStamp(&$nonce, &$timestamp)
 	{
 		$nonce = OAuthUtils::getIfSet($this->params_oauth, 'oauth_nonce', false);
 		$timestamp = OAuthUtils::getIfSet($this->params_oauth, 'oauth_timestamp', false);
 
 		return (!empty($nonce) && !empty($timestamp));
+	}
+
+	/**
+	 * Returns the signature method parameter's value or an empty string.
+	 **/
+	public function getSignatureMethod()
+	{
+		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_signature_method', '');
+	}
+
+	/**
+	 * Returns the signature parameter's value or an empty string.
+	 **/
+	public function getSignatureParameter()
+	{
+		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_signature', '');
 	}
 
 /*	public function getSignature(OAuthSignatureMethod $method)
