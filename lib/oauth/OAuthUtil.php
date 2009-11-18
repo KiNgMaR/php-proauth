@@ -13,9 +13,9 @@ class OAuthException extends Exception
 	}
 
 	/**
-	* Sends the HTTP response header, ideally as per OAuth Core specs
-	* section 10.
-	**/
+	 * Sends the HTTP response header, ideally as per OAuth Core specs
+	 * section 10.
+	 **/
 	public function sendHttpResponseHeader()
 	{
 		$response_codes = array(400 => 'Bad Request',
