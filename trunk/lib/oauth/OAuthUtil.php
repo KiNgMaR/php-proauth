@@ -5,17 +5,17 @@ class OAuthException extends Exception
 {
 	protected $http_response_code;
 
-  public function __construct($error_msg, $http_response_code = 500)
-  {
+	public function __construct($error_msg, $http_response_code = 500)
+	{
 		parent::__construct($error_msg);
 
 		$this->http_response_code = $http_response_code;
-  }
+	}
 
 	/**
-	 * Sends the HTTP response header, ideally as per OAuth Core specs
-	 * section 10.
-	 **/
+	* Sends the HTTP response header, ideally as per OAuth Core specs
+	* section 10.
+	**/
 	public function sendHttpResponseHeader()
 	{
 		$response_codes = array(400 => 'Bad Request',
@@ -200,19 +200,19 @@ class OAuthUtil
 
 		$url = parse_url($url);
 
-    $scheme = strtolower($parts['scheme']);
-    $default_port = ($scheme == 'https' ? 443 : 80);
+		$scheme = strtolower($parts['scheme']);
+		$default_port = ($scheme == 'https' ? 443 : 80);
 
-    $host = strtolower($parts['host']);
-    $port = (int)self::getIfSet($parts, 'port', $default_port);
+		$host = strtolower($parts['host']);
+		$port = (int)self::getIfSet($parts, 'port', $default_port);
 
-    $path = self::getIfSet($parts, 'path', '/');
+		$path = self::getIfSet($parts, 'path', '/');
 
-    if($port != $default_port)
-    {
-      $host .= ':' . $port;
-    }
+		if($port != $default_port)
+		{
+			$host .= ':' . $port;
+		}
 
-    return $scheme . '://' . $host . $path;
+		return $scheme . '://' . $host . $path;
 	}
 }
