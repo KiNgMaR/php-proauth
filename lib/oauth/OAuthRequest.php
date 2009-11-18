@@ -149,13 +149,13 @@ class OAuthRequest
 
 		unset($params['oauth_signature']);
 
-    // parameters are sorted by name, using lexicographical byte value ordering:
-    uksort($params, 'strcmp');
+		// parameters are sorted by name, using lexicographical byte value ordering:
+		uksort($params, 'strcmp');
 
-    // urlencode both keys and values:
-    $keys = OAuthUtils::urlEncode(array_keys($params));
-    $values = OAuthUtils::urlEncode(array_values($params));
-    $params = array_combine($keys, $values);
+		// urlencode both keys and values:
+		$keys = OAuthUtils::urlEncode(array_keys($params));
+		$values = OAuthUtils::urlEncode(array_values($params));
+		$params = array_combine($keys, $values);
 
 		$str = '';
 
@@ -168,7 +168,7 @@ class OAuthRequest
 			$str .= $key . '=' . $value;
 		}
 
-    return $str;
+		return $str;
 	}
 
 	/**
