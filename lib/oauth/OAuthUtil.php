@@ -203,7 +203,7 @@ class OAuthUtil
 			throw new OAuthException('Attempted to normalize an invalid URL: "' . $url . '"');
 		}
 
-		$url = parse_url($url);
+		$parts = parse_url($url);
 
 		$scheme = strtolower($parts['scheme']);
 		$default_port = ($scheme == 'https' ? 443 : 80);
