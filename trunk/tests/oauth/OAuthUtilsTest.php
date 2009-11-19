@@ -144,4 +144,18 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 	{
 		OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="site", oauth_token=xxx');
 	}
+
+	public function testNormalizeRequestURL()
+	{
+		$this->assertEquals('http://example.com/resource', OAuthUtil::normalizeRequestURL('HTTP://Example.com:80/resource?id=123'));
+		$this->assertEquals('https://example.net/resource/id/123', OAuthUtil::normalizeRequestURL('HTTPs://Example.NET/resource/id/123#xyz'));
+	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testNormalizeRequestURL2()
+	{
+		OAuthUtil::normalizeRequestURL('dsgdhkj');
+	}
 }
