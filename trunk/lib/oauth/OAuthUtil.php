@@ -44,9 +44,9 @@ class OAuthUtil
 	/**
 	 * Returns $default if $arr[$key] is unset.
 	 **/
-	static public function getIfSet($arr, $key, $default = NULL)
+	static public function getIfSet(&$arr, $key, $default = NULL)
 	{
-		if(is_array($arr) && !empty($arr[$key]))
+		if(isset($arr) && is_array($arr) && !empty($arr[$key]))
 		{
 			return $arr[$key];
 		}
