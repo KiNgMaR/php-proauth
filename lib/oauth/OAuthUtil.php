@@ -85,7 +85,7 @@ class OAuthUtil
 	/**
 	 * URL decodes the given string (or array!)...
 	 **/
-	static public function urlDecode($str)
+	static public function urlDecode($input)
 	{
 		if(is_array($input))
 		{
