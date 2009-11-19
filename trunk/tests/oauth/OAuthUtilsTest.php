@@ -149,6 +149,7 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 	{
 		$this->assertEquals('http://example.com/resource', OAuthUtil::normalizeRequestURL('HTTP://Example.com:80/resource?id=123'));
 		$this->assertEquals('https://example.net/resource/id/123', OAuthUtil::normalizeRequestURL('HTTPs://Example.NET/resource/id/123#xyz'));
+		$this->assertEquals('https://example.com', OAuthUtil::normalizeRequestURL('https://example.com'));
 	}
 
 	/**
