@@ -106,7 +106,7 @@ class OAuthUtil
 	 **/
 	static public function isKnownOAuthParameter($name)
 	{
-		$names = array('oauth_consumer_key', 'oauth_signature_method', 'oauth_signature', 'oauth_timestamp', 'oauth_nonce', 'oauth_version', 'oauth_callback');
+		$names = array('oauth_consumer_key', 'oauth_token', 'oauth_signature_method', 'oauth_signature', 'oauth_timestamp', 'oauth_nonce', 'oauth_version', 'oauth_callback');
 
 		return in_array($name, $names, true);
 	}
@@ -140,7 +140,7 @@ class OAuthUtil
 	 **/
 	static public function parseHttpAuthorizationHeader($header_string)
 	{
-		if(!preg_match('~^OAuth\s+(.+)~', $header_string, $match))
+		if(!preg_match('~^OAuth\s+(.+)$~s', $header_string, $match))
 		{
 			return false;
 		}
@@ -170,7 +170,7 @@ class OAuthUtil
 					$name = self::urlDecode($name);
 					$value = self::urlDecode(substr($value, 1, -1));
 
-					if(self::isKnownOAuthParameter($name) || $name == 'realm')
+					if(strpos($value, '"') === false && (self::isKnownOAuthParameter($name) || $name == 'realm'))
 					{
 						// The OPTIONAL realm parameter is added and interpreted per RFC2617.
 						$syntax_error = false;
