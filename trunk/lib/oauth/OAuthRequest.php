@@ -13,6 +13,8 @@ class OAuthRequest
 	protected $params_post;
 	protected $params_oauth;
 
+	protected $realm = '';
+
 	/**
 	 * Do not allow this class to be instantiated directly
 	 * You will have to use one of OAuthServerRequest/OAuthClientRequest classes.
@@ -108,6 +110,22 @@ class OAuthRequest
 	public function getSignatureParameter()
 	{
 		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_signature', '');
+	}
+
+	/**
+	 * Gets the realm value from/for the Authorization header.
+	 **/
+	public function getRealm()
+	{
+		return $this->realm;
+	}
+
+	/**
+	 * Sets the realm value for the Authorization header.
+	 **/
+	public function setRealm($new_realm)
+	{
+		$this->realm = $new_realm;
 	}
 
 /*	public function getSignature(OAuthSignatureMethod $method)
