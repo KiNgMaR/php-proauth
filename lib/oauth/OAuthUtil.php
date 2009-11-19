@@ -211,7 +211,10 @@ class OAuthUtil
 		$host = strtolower($parts['host']);
 		$port = (int)self::getIfSet($parts, 'port', $default_port);
 
-		$path = self::getIfSet($parts, 'path', '');
+		// Note that HTTP does not allow empty absolute paths, so the URL
+		// 'http://example.com' is equivalent to 'http://example.com/' and
+		// should be treated as such for the purposes of OAuth signing (rfc2616, section 3.2.1)!
+		$path = self::getIfSet($parts, 'path', '/');
 
 		if($port != $default_port)
 		{
