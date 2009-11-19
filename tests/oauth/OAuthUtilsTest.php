@@ -70,4 +70,78 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 		$this->assertEquals(mb_convert_encoding(pack('n', 0x0080), 'UTF-8', 'UTF-16'),  OAuthUtil::urlDecode('%C2%80'));
 		$this->assertEquals(mb_convert_encoding(pack('n', 0x3001), 'UTF-8', 'UTF-16'),  OAuthUtil::urlDecode('%E3%80%81'));
 	}
+
+	public function testIsKnownOAuthParameter()
+	{
+		$this->assertEquals(true, OAuthUtil::isKnownOAuthParameter('oauth_consumer_key'));
+		$this->assertEquals(false, OAuthUtil::isKnownOAuthParameter('oAuth_consumer_key'));
+		$this->assertEquals(false, OAuthUtil::isKnownOAuthParameter(' oauth_consumer_key'));
+		$this->assertEquals(false, OAuthUtil::isKnownOAuthParameter(NULL));
+	}
+
+	public function testParseHttpAuthorizationHeader()
+	{
+		$this->assertEquals(false, OAuthUtil::parseHttpAuthorizationHeader('Digest realm="abc", x="y"'));
+		$this->assertEquals(false, OAuthUtil::parseHttpAuthorizationHeader('OAuth'));
+		$this->assertEquals(array('realm' => 'site'), OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="site"'));
+		$this->assertEquals(array('realm' => ''), OAuthUtil::parseHttpAuthorizationHeader('OAuth realm=""'));
+
+		$this->assertEquals(array('realm' => 'http://sp.example.com/',
+				'oauth_consumer_key' => '0685bd9184jfhq22',
+				'oauth_token' => 'ad180jjd733klru7',
+				'oauth_signature_method' => 'HMAC-SHA1',
+				'oauth_signature' => 'wOJIO9A2W5mFwDgiDvZbTSMK/PY=',
+				'oauth_timestamp' => '137131200',
+				'oauth_nonce' => '4572616e48616d6d65724c61686176',
+				'oauth_version' => '1.0'),
+			OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="http://sp.example.com/",
+                oauth_consumer_key="0685bd9184jfhq22",
+                oauth_token="ad180jjd733klru7",
+                oauth_signature_method="HMAC-SHA1",
+                oauth_signature="wOJIO9A2W5mFwDgiDvZbTSMK%2FPY%3D",
+                oauth_timestamp="137131200",
+                oauth_nonce="4572616e48616d6d65724c61686176",
+                oauth_version="1.0"
+		'));
+	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testParseHttpAuthorizationHeader2()
+	{
+		OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="http://sp.exa');
+	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testParseHttpAuthorizationHeader3()
+	{
+		OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="site", oauth_token="test\"lol"');
+	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testParseHttpAuthorizationHeader4()
+	{
+		OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="site",,,,,,,,, oauth_token="xxx"');
+	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testParseHttpAuthorizationHeader5()
+	{
+		OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="site" oauth_token="xxx"');
+	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testParseHttpAuthorizationHeader6()
+	{
+		OAuthUtil::parseHttpAuthorizationHeader('OAuth realm="site", oauth_token=xxx');
+	}
 }
