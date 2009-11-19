@@ -1,6 +1,7 @@
 The MIT License
 
 Copyright (c) 2007 Andy Smith
+Copyright (c) 2009 morten.fangel
 		http://code.google.com/p/oauth/source/browse/#svn/code/php
 
 Copyright (c) 2007-2008 Mediamatic Lab
