@@ -83,6 +83,25 @@ class OAuthUtil
 	}
 
 	/**
+	 * Works similarly to http_build_query, but uses our custom URL encoding method.
+	 **/
+	static public function joinParametersMap(array $params)
+	{
+		$str = '';
+
+		foreach($params as $key => $value)
+		{
+			// For each parameter, the name is separated from the corresponding value by an '=' character (ASCII code 61)
+			// Each name-value pair is separated by an '&' character (ASCII code 38)
+
+			if(!empty($str)) $str .= '&';
+			$str .= self::urlEncode($key) . '=' . self::urlEncode($value);
+		}
+
+		return $str;
+	}
+
+	/**
 	 * URL decodes the given string (or array!)...
 	 **/
 	static public function urlDecode($input)
@@ -223,4 +242,61 @@ class OAuthUtil
 
 		return $scheme . '://' . $host . $path;
 	}
+
+	/**
+	 * Returns a random string consisting of letters and numbers
+	 **/
+	static public function randomString($length)
+	{
+		$s = '';
+		for($i = 0; $i < $length; $i++)
+		{
+			switch(mt_rand(0, mt_rand(3, 4)))
+			{
+				case $i % 2:
+					$s .= mt_rand(0, 9); break;
+				case ($i + 1) % 2:
+					$s .= chr(mt_rand(65, 90)); break;
+				default:
+					$s .= chr(mt_rand(97, 122));
+			}
+		}
+		return $s;
+	}
 }
+
+
+class OAuthToken
+{
+	protected $token;
+	protected $secret;
+	protected $additional_params = array();
+
+	public function __construct($token, $secret)
+	{
+		$this->token = $token;
+		$this->secret = $secret;
+	}
+
+	public function getToken() { return $token; }
+	public function getSecret() { return $secret; }
+
+	public function setAdditionalParam($name, $value)
+	{
+		if($name != 'oauth_token' && $name != 'oauth_secret')
+		{
+			$this->additional_params[$name] = $value;
+		}
+	}
+
+	public function __toString()
+	{
+		$params = array('oauth_token' => $this->token,
+			'oauth_secret' => $this->secret);
+
+		$params = array_merge($params, $this->additional_params);
+
+		return OAuthUtil::joinParametersMap($params);
+	}
+}
+
