@@ -9,9 +9,9 @@ class OAuthRequest
 	protected $http_method;
 	protected $request_url;
 
-	protected $params_get;
-	protected $params_post;
-	protected $params_oauth;
+	protected $params_get = array();
+	protected $params_post = array();
+	protected $params_oauth = array();
 
 	protected $realm = '';
 
@@ -19,7 +19,9 @@ class OAuthRequest
 	 * Do not allow this class to be instantiated directly
 	 * You will have to use one of OAuthServerRequest/OAuthClientRequest classes.
 	 **/
-	protected function __construct() {}
+	protected function __construct()
+	{
+	}
 
 	/**
 	 * Returns the signature base string, as defined by section 9.1 of the OAuth Core specs.
