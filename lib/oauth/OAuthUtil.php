@@ -211,7 +211,7 @@ class OAuthUtil
 		$host = strtolower($parts['host']);
 		$port = (int)self::getIfSet($parts, 'port', $default_port);
 
-		$path = self::getIfSet($parts, 'path', '/');
+		$path = self::getIfSet($parts, 'path', '');
 
 		if($port != $default_port)
 		{
