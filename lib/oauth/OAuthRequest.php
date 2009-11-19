@@ -52,23 +52,7 @@ class OAuthRequest
 		// parameters are sorted by name, using lexicographical byte value ordering:
 		uksort($params, 'strcmp');
 
-		// urlencode both keys and values:
-		$keys = OAuthUtil::urlEncode(array_keys($params));
-		$values = OAuthUtil::urlEncode(array_values($params));
-		$params = array_combine($keys, $values);
-
-		$str = '';
-
-		foreach($params as $key => $value)
-		{
-			// For each parameter, the name is separated from the corresponding value by an '=' character (ASCII code 61)
-			// Each name-value pair is separated by an '&' character (ASCII code 38)
-
-			if(!empty($str)) $str .= '&';
-			$str .= $key . '=' . $value;
-		}
-
-		return $str;
+		return OAuthUtil::joinParametersMap($params);
 	}
 
 	/**

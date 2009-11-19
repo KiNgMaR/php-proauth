@@ -103,7 +103,36 @@ class OAuthServer
 	public function requestToken()
 	{
 		$req = new OAuthServerRequest();
+
 		$this->checkOAuthVersion($req);
+
+		$consumer = $this->getConsumer();
+
+		$this->checkSignature($req, $consumer, NULL);
+
+		$callback_url = $req->getCallbackParameter();
+
+		if(!empty($callback_url) && !filter_var($callback_url, FILTER_VALIDATE_URL) && $callback_url != 'oob')
+		{
+			throw new OAuthException('Invalid callback used.', 400);
+		}
+
+		$temp_secret = OAuthUtil::randomString(40);
+
+		do
+		{
+			$new_token = new OAuthToken(OAuthUtil::randomString(20), $temp_secret);
+			$result = $this->backend->addTempToken($consumer, $new_token, $callback_url);
+		} while($result == OAuthServerBackend::RESULT_DUPE);
+
+		if($result != OAuthServerBackend::RESULT_OK)
+		{
+			throw new OAuthException('Creating a temporary token failed.');
+		}
+
+		$new_token->setAdditionalParam('oauth_callback_confirmed', (empty($callback_url) ? 'false' : 'true'));
+
+		return $new_token;
 	}
 
 	/**
@@ -255,6 +284,14 @@ class OAuthServerRequest extends OAuthRequest
 		}
 
 		// whew, done.
+	}
+
+	/**
+	 * Returns the oauth_callback parameter's value or an empty string.
+	 **/
+	public function getCallbackParameter()
+	{
+		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_callback', '');
 	}
 }
 

@@ -50,6 +50,9 @@ class OAuthClient
 
 class OAuthClientRequest extends OAuthRequest
 {
+	protected $consumer;
+	protected $token;
+
 	public function __construct(OAuthConsumer $consumer, OAuthToken $token, $http_method, $url)
 	{
 		parent::__construct();
@@ -59,9 +62,13 @@ class OAuthClientRequest extends OAuthRequest
 			throw new OAuthException('Unsupported HTTP method in OAuthClientRequest.');
 		}
 
+		// save to calculate the signature later:
+		$this->consumer = $consumer;
+		$this->token = $token;
+
 		$this->params_oauth['oauth_consumer_key'] = $consumer->getKey();
 		$this->params_oauth['oauth_token'] = $token->getToken();
-		$this->params_oauth['oauth_signature_method'] = $token->getToken();
+		// we do not add oauth_version=1.0 since it's optional (section 7 of the OAuth Core specs)
 	}
 
 	public function setGetParameters(array $new_params)
@@ -74,3 +81,4 @@ class OAuthClientRequest extends OAuthRequest
 		$this->params_post = $new_params;
 	}
 }
+
