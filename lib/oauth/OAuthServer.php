@@ -1,5 +1,11 @@
 <?php
 
+require_once './OAuthUtils.php';
+require_once './OAuthRequest.php';
+require_once './OAuthSignature.php';
+require_once './OAuthServerBackend.php';
+
+
 class OAuthServer
 {
 	protected $backend;
@@ -158,7 +164,7 @@ class OAuthServerRequest extends OAuthRequest
 
 		if(empty($host))
 		{
-			throw new OAuthException('The requesting client did not send the HTTP Host header which is required by this implementation.');
+			throw new OAuthException('The requesting client did not send the HTTP Host header which is required by this implementation.', 400);
 		}
 
 		$scheme = (OAuthUtils::getIfSet($_SERVER, 'HTTPS', 'off') === 'on' ? 'https' : 'http');
@@ -183,11 +189,12 @@ class OAuthServerRequest extends OAuthRequest
 			if(is_array($header_parameters) && count($header_parameters) > 0)
 			{
 				$realm = OAuthUtils::getIfSet($header_parameters, 'realm');
+				unset($header_parameters['realm']);
 
 				$this->params_oauth = $header_parameters;
 			}
 
-			/* :TODO: Check and/or store the realm parameter here... */
+			$this->setRealm($realm);
 		}
 
 		// The next paragraphs implement section 5.2 from the OAuth Core specs.
@@ -210,7 +217,7 @@ class OAuthServerRequest extends OAuthRequest
 				}
 				else
 				{
-					throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.');
+					throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.', 400);
 				}
 			}
 			else
@@ -233,14 +240,14 @@ class OAuthServerRequest extends OAuthRequest
 				}
 				else
 				{
-					throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.');
+					throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.', 400);
 				}
 			}
 			else
 			{
 				if(isset($this->params_post[$key]))
 				{
-					throw new OAuthException('We do not support GET and POST parameters with the same name.');
+					throw new OAuthException('We do not support GET and POST parameters with the same name.', 400);
 				}
 
 				$this->params_get[$key] = $value;
