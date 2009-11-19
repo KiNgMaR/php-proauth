@@ -1,6 +1,6 @@
 <?php
 
-require_once './OAuthUtils.php';
+require_once './OAuthUtil.php';
 require_once './OAuthRequest.php';
 require_once './OAuthSignature.php';
 require_once './OAuthServerBackend.php';
@@ -150,7 +150,7 @@ class OAuthServerRequest extends OAuthRequest
 		parent::__construct();
 
 		// Determine HTTP method...
-		$this->http_method = OAuthUtils::getIfSet($_SERVER, 'REQUEST_METHOD');
+		$this->http_method = OAuthUtil::getIfSet($_SERVER, 'REQUEST_METHOD');
 
 		if(empty($this->http_method))
 		{
@@ -160,14 +160,14 @@ class OAuthServerRequest extends OAuthRequest
 
 
 		// Determine request URL:
-		$host = OAuthUtils::getIfSet($_SERVER, 'HTTP_HOST');
+		$host = OAuthUtil::getIfSet($_SERVER, 'HTTP_HOST');
 
 		if(empty($host))
 		{
 			throw new OAuthException('The requesting client did not send the HTTP Host header which is required by this implementation.', 400);
 		}
 
-		$scheme = (OAuthUtils::getIfSet($_SERVER, 'HTTPS', 'off') === 'on' ? 'https' : 'http');
+		$scheme = (OAuthUtil::getIfSet($_SERVER, 'HTTPS', 'off') === 'on' ? 'https' : 'http');
 
 		$port = (int)$_SERVER['SERVER_PORT'];
 
@@ -179,16 +179,16 @@ class OAuthServerRequest extends OAuthRequest
 		// extract oauth parameters from the Authorization
 		// HTTP header. If present, these take precedence over
 		// GET and POST parameters.
-		$header_parameters = OAuthUtils::getPageRequestAuthorizationHeader();
+		$header_parameters = OAuthUtil::getPageRequestAuthorizationHeader();
 
 		if(!empty($header_parameters))
 		{
-			$header_parameters = OAuthUtils::parseHttpAuthorizationHeader($header_parameters);
+			$header_parameters = OAuthUtil::parseHttpAuthorizationHeader($header_parameters);
 			$realm = '';
 
 			if(is_array($header_parameters) && count($header_parameters) > 0)
 			{
-				$realm = OAuthUtils::getIfSet($header_parameters, 'realm');
+				$realm = OAuthUtil::getIfSet($header_parameters, 'realm');
 				unset($header_parameters['realm']);
 
 				$this->params_oauth = $header_parameters;
@@ -208,7 +208,7 @@ class OAuthServerRequest extends OAuthRequest
 
 		foreach($_POST as $key => $value)
 		{
-			if(OAuthUtils::isKnownOAuthParameter($key))
+			if(OAuthUtil::isKnownOAuthParameter($key))
 			{
 				if(!isset($this->params_oauth[$key]))
 				{
@@ -231,7 +231,7 @@ class OAuthServerRequest extends OAuthRequest
 
 		foreach($_GET as $key => $value)
 		{
-			if(OAuthUtils::isKnownOAuthParameter($key))
+			if(OAuthUtil::isKnownOAuthParameter($key))
 			{
 				if(!isset($this->params_oauth[$key]))
 				{

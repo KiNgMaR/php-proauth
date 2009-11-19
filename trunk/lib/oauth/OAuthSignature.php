@@ -56,7 +56,7 @@ class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
 			is_object($token) ? $token->getSecret() : ''
 		);
 
-		$key_parts = OAuthUtils::urlEncode($key_parts);
+		$key_parts = OAuthUtil::urlEncode($key_parts);
 		$key = implode('&', $key_parts);
 
 		if(function_exists('hash_hmac'))

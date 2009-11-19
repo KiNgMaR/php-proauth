@@ -28,11 +28,11 @@ class OAuthRequest
 	{
 		$parts = array(
 			strtoupper($this->http_method),
-			OAuthUtils::normalizeRequestURL($this->request_url),
+			OAuthUtil::normalizeRequestURL($this->request_url),
 			$this->getSignableParametersString()
 		);
 
-		$parts = OAuthUtils::urlEncode($parts);
+		$parts = OAuthUtil::urlEncode($parts);
 
 		return implode('&', $parts);
 	}
@@ -51,8 +51,8 @@ class OAuthRequest
 		uksort($params, 'strcmp');
 
 		// urlencode both keys and values:
-		$keys = OAuthUtils::urlEncode(array_keys($params));
-		$values = OAuthUtils::urlEncode(array_values($params));
+		$keys = OAuthUtil::urlEncode(array_keys($params));
+		$values = OAuthUtil::urlEncode(array_values($params));
 		$params = array_combine($keys, $values);
 
 		$str = '';
@@ -74,7 +74,7 @@ class OAuthRequest
 	 **/
 	public function getOAuthVersion()
 	{
-		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_version', '1.0');
+		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_version', '1.0');
 	}
 
 	/**
@@ -82,7 +82,7 @@ class OAuthRequest
 	 **/
 	public function getConsumerKey()
 	{
-		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_consumer_key', false);
+		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_consumer_key', false);
 	}
 
 	/**
@@ -90,8 +90,8 @@ class OAuthRequest
 	 **/
 	public function getNonceAndTimeStamp(&$nonce, &$timestamp)
 	{
-		$nonce = OAuthUtils::getIfSet($this->params_oauth, 'oauth_nonce', false);
-		$timestamp = OAuthUtils::getIfSet($this->params_oauth, 'oauth_timestamp', false);
+		$nonce = OAuthUtil::getIfSet($this->params_oauth, 'oauth_nonce', false);
+		$timestamp = OAuthUtil::getIfSet($this->params_oauth, 'oauth_timestamp', false);
 
 		return (!empty($nonce) && !empty($timestamp));
 	}
@@ -101,7 +101,7 @@ class OAuthRequest
 	 **/
 	public function getSignatureMethod()
 	{
-		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_signature_method', '');
+		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_signature_method', '');
 	}
 
 	/**
@@ -109,7 +109,7 @@ class OAuthRequest
 	 **/
 	public function getSignatureParameter()
 	{
-		return OAuthUtils::getIfSet($this->params_oauth, 'oauth_signature', '');
+		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_signature', '');
 	}
 
 	/**
