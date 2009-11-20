@@ -151,7 +151,8 @@ class OAuthUtil
 	 **/
 	static public function isKnownOAuthParameter($name)
 	{
-		$names = array('oauth_consumer_key', 'oauth_token', 'oauth_signature_method', 'oauth_signature', 'oauth_timestamp', 'oauth_nonce', 'oauth_version', 'oauth_callback');
+		$names = array('oauth_consumer_key', 'oauth_token', 'oauth_signature_method', 'oauth_signature',
+			'oauth_timestamp', 'oauth_nonce', 'oauth_version', 'oauth_callback', 'oauth_error_in_response_body');
 
 		return in_array($name, $names, true);
 	}
@@ -289,6 +290,36 @@ class OAuthUtil
 			}
 		}
 		return $s;
+	}
+
+	/**
+	 * Validates the given URL. Returns the validated URL.
+	 * It is advised to always use the return value.
+	 **/
+	static public function validateCallbackURL($url)
+	{
+		if(empty($url))
+		{
+			return '';
+		}
+
+		if($url === 'oob')
+		{
+			return $url;
+		}
+
+		if(filter_var($url, FILTER_VALIDATE_URL))
+		{
+			$parts = parse_url($url);
+			$scheme = strtolower($parts['scheme']);
+
+			if($scheme == 'http' || $scheme == 'https')
+			{
+				return $url;
+			}
+		}
+
+		throw new OAuthException('An invalid callback URL has been used.', 401);
 	}
 }
 
