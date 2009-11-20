@@ -138,11 +138,7 @@ class OAuthServer
 		$this->checkSignature($req, $consumer, NULL);
 
 		$callback_url = $req->getCallbackParameter();
-
-		if(!empty($callback_url) && !filter_var($callback_url, FILTER_VALIDATE_URL) && $callback_url != 'oob')
-		{
-			throw new OAuthException('Invalid callback used.', 400);
-		}
+		$callback_url = OAuthUtils::validateCallbackURL($callback_url);
 
 		$temp_secret = OAuthUtil::randomString(40);
 
