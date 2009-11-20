@@ -1,8 +1,13 @@
 <?php
 
-require_once './OAuthUtils.php';
-require_once './OAuthRequest.php';
-require_once './OAuthSignature.php';
+if(!defined('_OAUTH_LIB_DIR'))
+{
+	define('_OAUTH_LIB_DIR', dirname(__FILE__) . '/');
+}
+
+require_once _OAUTH_LIB_DIR . 'OAuthUtil.php';
+require_once _OAUTH_LIB_DIR . 'OAuthRequest.php';
+require_once _OAUTH_LIB_DIR . 'OAuthSignature.php';
 
 
 class OAuthClient
