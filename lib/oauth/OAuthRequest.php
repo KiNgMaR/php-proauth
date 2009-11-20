@@ -52,6 +52,8 @@ class OAuthRequest
 		// parameters are sorted by name, using lexicographical byte value ordering:
 		uksort($params, 'strcmp');
 
+		// again: we do not support multiple parameters with the same name!
+
 		return OAuthUtil::joinParametersMap($params);
 	}
 

@@ -64,6 +64,10 @@ class OAuthServer
 		{
 			throw new OAuthException('Consumer not found.', 500);
 		}
+		else
+		{
+			throw new OAuthException('Backend returned an incorrect value from getConsumerByKey');
+		}
 
 		return $consumer;
 	}
@@ -90,7 +94,9 @@ class OAuthServer
 	{
 		$req->getNonceAndTimeStamp($nonce, $timestamp);
 
-		if($this->backend->checkNonceAndTimeStamp($nonce, $timestamp, $consumer, $token))
+		$result = $this->backend->checkNonceAndTimeStamp($nonce, $timestamp, $consumer, $token);
+
+		if($result == OAuthServerBackend::RESULT_OK)
 		{
 			$sig_method = $this->getSignatureMethod($req);
 
@@ -99,9 +105,21 @@ class OAuthServer
 				throw new OAuthException('Invalid signature.', 401, 'signature_invalid');
 			}
 		}
+		elseif($result == OAuthServerBackend::RESULT_DUPE_NONCE)
+		{
+			throw new OAuthException('A previously used nonce has been used again.', 401, 'nonce_used');
+		}
+		elseif($result == OAuthServerBackend::RESULT_BAD_TIMESTAMP)
+		{
+			throw new OAuthException('The request timestamp is invalid.', 401, 'timestamp_refused');
+		}
+		elseif($result == OAuthServerBackend::RESULT_BAD_TOKEN)
+		{
+			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
+		}
 		else
 		{
-			throw new OAuthException('Invalid nonce, timestamp or token.', 401);
+			throw new OAuthException('Backend returned an incorrect value from checkNonceAndTimeStamp');
 		}
 	}
 
@@ -292,7 +310,15 @@ class OAuthServerRequest extends OAuthRequest
 			}
 		}
 
-		// whew, done.
+		// whew, done with the parameter extraction.
+
+		if(count($this->params_oauth) == 0)
+		{
+			// the Service Provider can now send
+			// header('WWW-Authenticate: OAuth realm="http://sp.example.com/"');
+			// if he deems it necessary.
+			throw new NonOAuthRequestException();
+		}
 	}
 
 	/**
@@ -304,3 +330,5 @@ class OAuthServerRequest extends OAuthRequest
 	}
 }
 
+
+class NonOAuthRequestException extends Exception {}
