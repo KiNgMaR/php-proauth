@@ -185,7 +185,8 @@ class OAuthUtil
 	 **/
 	static public function parseHttpAuthorizationHeader($header_string)
 	{
-		if(!preg_match('~^OAuth\s+(.+)$~s', $header_string, $match))
+		// The extension auth-scheme (as defined by RFC2617) is "OAuth" and is case-insensitive.
+		if(!preg_match('~^OAuth\s+(.+)$~si', $header_string, $match))
 		{
 			return false;
 		}
