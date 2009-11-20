@@ -31,7 +31,8 @@ class OAuthServer
 
 		if(!version_compare($version, '1.0', '=='))
 		{
-			throw new OAuthException('OAuth version "' . $version . '" is not supported!');
+			throw new OAuthException('OAuth version "' . $version . '" is not supported!',
+				400, 'version_rejected', array('oauth_acceptable_versions' => '1.0-1.0'));
 		}
 
 		return $version;
@@ -46,14 +47,22 @@ class OAuthServer
 
 		if(!$consumer_key)
 		{
-			throw new OAuthException('Invalid consumer key.', 401);
+			throw new OAuthException('Invalid consumer key.', 401, 'consumer_key_unknown');
 		}
 
 		$consumer = $this->backend->getConsumerByKey($consumer_key);
 
-		if(!$consumer)
+		if($consumer === OAuthServerBackend::RESULT_RATE_LIMITED)
 		{
-			throw new OAuthException('Consumer not found.', 401);
+			throw new OAuthException('Too many requests have been made. Throttling.', 401, 'consumer_key_refused');
+		}
+		elseif($consumer === OAuthServerBackend::RESULT_DISABLED)
+		{
+			throw new OAuthException('This consumer key has been disabled permanently.', 401, 'consumer_key_rejected');
+		}
+		elseif($consumer === OAuthServerBackend::RESULT_NOT_FOUND)
+		{
+			throw new OAuthException('Consumer not found.', 500);
 		}
 
 		return $consumer;
@@ -68,7 +77,7 @@ class OAuthServer
 
 		if(!isset($this->signature_methods[$method]))
 		{
-			throw new OAuthException('Signature method "' . $signature_method . '" not supported.', 400);
+			throw new OAuthException('Signature method "' . $signature_method . '" not supported.', 400, 'signature_method_rejected');
 		}
 
 		return $this->signature_methods[$signature_method];
@@ -87,7 +96,7 @@ class OAuthServer
 
 			if(!$sig_method->checkSignature($req, $consumer, $token))
 			{
-				throw new OAuthException('Invalid signature.', 401);
+				throw new OAuthException('Invalid signature.', 401, 'signature_invalid');
 			}
 		}
 		else

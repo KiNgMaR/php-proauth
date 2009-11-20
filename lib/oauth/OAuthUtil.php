@@ -4,17 +4,20 @@
 class OAuthException extends Exception
 {
 	protected $http_response_code;
+	protected $oauth_problem, $oauth_problem_extra_info;
 
 	/**
 	 * Standard constructor. The http_response_code should be set
 	 * according to section 10 of the OAuth Core specs.
 	 * @param int http_response_code
 	 **/
-	public function __construct($error_msg, $http_response_code = 500)
+	public function __construct($error_msg, $http_response_code = 500, $oauth_problem = '', array $oauth_problem_extra_info = NULL)
 	{
 		parent::__construct($error_msg);
 
 		$this->http_response_code = $http_response_code;
+		$this->oauth_problem = $oauth_problem;
+		$this->oauth_problem_descr = $oauth_problem_extra_info;
 	}
 
 	/**
@@ -35,6 +38,29 @@ class OAuthException extends Exception
 		}
 
 		header('HTTP/1.0 ' . $this->http_response_code . ' ' . $response_descr);
+	}
+
+	/**
+	 * Returns a string that follows the guidelines at
+	 * http://oauth.pbworks.com/ProblemReporting if an oauth_problem
+	 * has been specified in the constructor or an empty string otherwise.
+	 **/
+	public function getOAuthProblemString()
+	{
+		if(empty($this->oauth_problem))
+		{
+			return '';
+		}
+
+		$params = array('oauth_problem' => $this->oauth_problem,
+			'oauth_problem_advice' => $this->getMessage());
+
+		if(is_array($this->oauth_problem_extra_info))
+		{
+			$params = array_merge($params, $this->oauth_problem_extra_info);
+		}
+
+		return OAuthUtil::joinParametersMap($params);
 	}
 }
 
