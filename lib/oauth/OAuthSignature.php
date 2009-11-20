@@ -11,7 +11,7 @@ abstract class OAuthSignatureMethod
 	 * Must build the signature string from the given parameters and return it.
 	 * @return string
 	 **/
-	abstract protected function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token);
+	abstract public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token);
 
 	/**
 	 * Compares the given $signature_string with the one that is defined by req, consumer and token.
@@ -47,7 +47,7 @@ class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
 	 * @author Marc Worrell <marcw@pobox.com>
 	 * @source http://code.google.com/p/oauth-php/source/browse/trunk/library/signature_method/OAuthSignatureMethod_HMAC_SHA1.php
 	 **/
-	protected function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
 	{
 		$base_string = $req->getSignatureBaseString();
 

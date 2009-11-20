@@ -54,7 +54,7 @@ class OAuthClient
 	 **/
 	public function createGetRequest($url, array $params = array())
 	{
-		$req = new OAuthClientRequest($this->consumer, $this->token, 'GET', $url);
+		$req = new OAuthClientRequest($this, 'GET', $url);
 
 		$req->setPostParameters($params);
 
@@ -84,18 +84,33 @@ class OAuthClient
 		return time();
 		// the protocol has room for improvement here.
 	}
+
+	/**
+	 * @return OAuthToken
+	 **/
+	public function getToken() { return $this->token; }
+
+	/**
+	 * @return OAuthConsumer
+	 **/
+	public function getConsumer() { return $this->consumer; }
+
+	/**
+	 * @return OAuthSignatureMethod
+	 **/
+	public function getSignatureMethod() { return $this->signature_method; }
 }
 
 
 class OAuthClientRequest extends OAuthRequest
 {
-	protected $consumer;
-	protected $token;
+	protected $client;
+	protected $signed = false;
 
 	/**
 	 * Usually invoked by OAuthClient. It's not recommended to create instances by other means.
 	 **/
-	public function __construct(OAuthConsumer $consumer, OAuthToken $token, $http_method, $url)
+	public function __construct(OAuthClient $client, $http_method, $url)
 	{
 		parent::__construct();
 
@@ -104,12 +119,13 @@ class OAuthClientRequest extends OAuthRequest
 			throw new OAuthException('Unsupported HTTP method in OAuthClientRequest.');
 		}
 
-		// save to calculate the signature later:
-		$this->consumer = $consumer;
-		$this->token = $token;
+		$this->client = $client;
 
 		$this->params_oauth['oauth_consumer_key'] = $consumer->getKey();
-		$this->params_oauth['oauth_token'] = $token->getToken();
+		if(!is_null($token))
+		{
+			$this->params_oauth['oauth_token'] = $token->getToken();
+		}
 		// we do not add oauth_version=1.0 since it's optional (section 7 of the OAuth Core specs)
 	}
 
@@ -119,6 +135,7 @@ class OAuthClientRequest extends OAuthRequest
 	public function setGetParameters(array $new_params)
 	{
 		$this->params_get = $new_params;
+		$this->signed = false;
 	}
 
 	/**
@@ -127,6 +144,33 @@ class OAuthClientRequest extends OAuthRequest
 	public function setPostParameters(array $new_params)
 	{
 		$this->params_post = $new_params;
+		$this->signed = false;
 	}
+
+	/**
+	 * Signs the request. You are asked to immediately send it to the
+	 * Service Provider after signing it.
+	 **/
+	public function sign()
+	{
+		$this->params_oauth['oauth_timestamp'] = $this->client->generateTimestamp();
+		$this->params_oauth['oauth_nonce'] = $this->client->generateNonce();
+
+		$this->params_oauth['oauth_signature_method'] = $this->client->getSignatureMethod->getName();
+		$this->params_oauth['oauth_signature'] = $this->client->getSignatureMethod->buildSignature($this,
+			$this->client->getConsumer(), $this->client->getToken()); // is this too long? :P
+
+		if(empty($this->params_oauth['oauth_signature']))
+		{
+			throw new OAuthException('Signing the request completely and utterly failed.');
+		}
+
+		$this->signed = true;
+	}
+
+	/**
+	 * @return bool The current parameters of this request have been signed.
+	 **/
+	public function isSigned() { return $this->signed; }
 }
 
