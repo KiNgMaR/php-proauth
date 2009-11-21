@@ -16,10 +16,17 @@ class OAuthServer
 	protected $backend;
 	protected $user_data = NULL;
 	protected $signature_methods = array();
+	protected $superglobals_auto_export;
 
-	public function __construct(OAuthServerBackend $backend)
+	/**
+	 * @param OAuthServerBackend backend The backend. Yeah.
+	 * @param bool superglobals_auto_export If true, OAuthServerRequest parameters validated against \
+	 *   this class will be exported as $_GET, $_POST and $_REQUEST automatically.
+	 **/
+	public function __construct(OAuthServerBackend $backend, $superglobals_auto_export = false)
 	{
 		$this->backend = $backend;
+		$this->superglobals_auto_export = $superglobals_auto_export;
 	}
 
 	public function addSignatureMethod(OAuthSignatureMethod $method)
@@ -30,7 +37,7 @@ class OAuthServer
 	/**
 	 * For internal use, checks if the OAuth version of $req is okay.
 	 **/
-	protected function checkOAuthVersion(OAuthRequest $req)
+	protected function checkOAuthVersion(OAuthServerRequest $req)
 	{
 		$version = $req->getOAuthVersion();
 
@@ -46,7 +53,7 @@ class OAuthServer
 	/**
 	 * For internal use, returns an OAuthConsumer instance.
 	 **/
-	protected function getConsumer(OAuthRequest $req)
+	protected function getConsumer(OAuthServerRequest $req)
 	{
 		$consumer_key = $req->getConsumerKey();
 
@@ -80,7 +87,7 @@ class OAuthServer
 	/**
 	 * For internal use, returns the appropriate OAuthSignatureMethod instance.
 	 **/
-	protected function getSignatureMethod(OAuthRequest $req)
+	protected function getSignatureMethod(OAuthServerRequest $req)
 	{
 		$method = strtoupper($req->getSignatureMethod());
 
@@ -95,7 +102,7 @@ class OAuthServer
 	/**
 	 * For internal use, checks nonce, timestamp and token!
 	 **/
-	protected function checkSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	protected function checkSignature(OAuthServerRequest $req, OAuthConsumer $consumer, OAuthToken $token)
 	{
 		$req->getNonceAndTimeStamp($nonce, $timestamp);
 
@@ -108,6 +115,11 @@ class OAuthServer
 			if(!$sig_method->checkSignature($req, $consumer, $token))
 			{
 				throw new OAuthException('Invalid signature.', 401, 'signature_invalid');
+			}
+
+			if($this->superglobals_auto_export)
+			{
+				$req->exportAsSuperglobals();
 			}
 		}
 		elseif($result == OAuthServerBackend::RESULT_DUPE_NONCE)
@@ -195,7 +207,7 @@ class OAuthServer
 	 **/
 	public function verifyApiCall()
 	{
-	
+
 	}
 }
 
@@ -280,7 +292,6 @@ class OAuthServerRequest extends OAuthRequest
 					if(!isset($this->params_oauth[$key]))
 					{
 						$this->params_oauth[$key] = $value;
-						unset($_POST[$key]);
 					}
 					else
 					{
@@ -293,10 +304,6 @@ class OAuthServerRequest extends OAuthRequest
 				}
 			}
 		}
-		else
-		{
-			$_POST = array();
-		}
 
 		// extract GET parameters...
 		foreach($_GET as $key => $value)
@@ -306,7 +313,6 @@ class OAuthServerRequest extends OAuthRequest
 				if(!isset($this->params_oauth[$key]))
 				{
 					$this->params_oauth[$key] = $value;
-					unset($_GET[$key]);
 				}
 				else
 				{
@@ -324,11 +330,6 @@ class OAuthServerRequest extends OAuthRequest
 			}
 		}
 
-		// jesus, this makes me feel bad... :TODO: figure out a better way.
-		$_REQUEST = array_merge($this->params_get, $this->params_post);
-		// we do this btw because $_COOKIE may be in $_REQUEST as well, and we want
-		// only signed and checked parameters in $_GET, $_POST and $_REQUEST.
-
 		// whew, done with the parameter extraction.
 
 		if(count($this->params_oauth) == 0)
@@ -338,6 +339,27 @@ class OAuthServerRequest extends OAuthRequest
 			// if he deems it necessary.
 			throw new NonOAuthRequestException();
 		}
+	}
+
+	/**
+	 * Overwrites the $_GET, $_POST and $_REQUEST superglobals with the data from this
+	 * request. They won't contain any known oauth_ parameters and $_REQUEST will
+	 * be cookie-parameter free.
+	 **/
+	public function exportAsSuperglobals()
+	{
+		// POST parameters would take precedence here, but we do not
+		// support POST and GET parameters of the same name, so
+		// yeah. Just writing this down here so we know later.
+		$_REQUEST = array_merge($this->params_get, $this->params_post);
+
+		$_GET = $this->params_get;
+		$_POST = $this->params_post;
+
+		// we cannot validate file uploads right now,
+		// if there were any files, $_POST will be empty too
+		// (because Content-Type isn't application/x-www-form-urlencoded)
+		$_FILES = array();
 	}
 
 	/**
