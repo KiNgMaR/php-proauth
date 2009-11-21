@@ -179,12 +179,8 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 		OAuthUtil::normalizeRequestURL('dsgdhkj');
 	}
 
-	/**
-	 * @expectedException OAuthException
-	 **/
 	public function testValidateCallbackURL()
 	{
-		$this->assertEquals('', OAuthUtil::validateCallbackURL('fsdjp430'));
 		$this->assertEquals('oob', OAuthUtil::validateCallbackURL('oob'));
 		$this->assertEquals('https://example.net/id/123', OAuthUtil::validateCallbackURL('https://example.net/id/123'));
 		$this->assertEquals('https://example.net/id/123?x=y&z=das%20das', OAuthUtil::validateCallbackURL('https://example.net/id/123?x=y&z=das%20das'));
