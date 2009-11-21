@@ -44,6 +44,9 @@ class OAuthException extends Exception
 	 * Returns a string that follows the guidelines at
 	 * http://oauth.pbworks.com/ProblemReporting if an oauth_problem
 	 * has been specified in the constructor or an empty string otherwise.
+	 * The returned string can be used in a WWW-Authenticate header, or as
+	 * the body part of the response. It must not be HTML encoded or otherwise
+	 * escpaed.
 	 **/
 	public function getOAuthProblemString()
 	{
@@ -138,7 +141,12 @@ class OAuthUtil
 		}
 		elseif(is_scalar($input))
 		{
-			return rawurldecode($input);
+			// we use urldecode (instead of rawurldecode) here, because section 3.4.1.3.1. of the hammer-draft says:
+			// <quote>While the encoding rules specified in this specification for the purpose of constructing the
+			// signature base string exclude the use of a + character (ASCII code 43) to represent an encoded
+			// space character (ASCII code 32), this practice is widely used in application/x-www-form-urlencoded
+			// encoded values, and MUST be properly decoded.</quote>
+			return urldecode($input);
 		}
 		else
 		{
@@ -158,24 +166,37 @@ class OAuthUtil
 	}
 
 	/**
-	 * Determines and returns the value of the HTTP Authorization header
-	 * that has been sent with the current page request.
+	 * Returns an array of all HTTP request headers. The key names will
+	 * be all lowercase, for RFC 2612 section 4.2 requires
+	 * them to be treated case-insensitively.
 	 **/
-	static public function getPageRequestAuthorizationHeader()
+	static public function getPageRequestHeaders()
 	{
-		$auth_str = self::getIfSet($_SERVER, 'HTTP_AUTHORIZATION', '');
+		$headers = array();
 
-		if(empty($auth_str))
+		if(function_exists('apache_request_headers'))
 		{
-			if(function_exists('apache_request_headers'))
-			{
-				$headers = apache_request_headers();
+			$temp_headers = apache_request_headers();
 
-				$auth_str = self::getIfSet($headers, 'Authorization');
+			foreach($temp_headers as $key => $value) { $headers[strtolower($key)] = $value; }
+		}
+		else
+		{
+			foreach($_SERVER as $key => $value)
+			{
+				if(strpos($key, 'HTTP_') === 0)
+				{
+					// transform e.g. "HTTP_USER_AGENT" into "user-agent":
+					$header_name = substr($key, 5);
+					$header_name = strtolower($header_name);
+					$header_name = strtr($header_name, '_', '-');
+
+					$headers[$header_name] = $value;
+				}
 			}
 		}
 
-		return $auth_str;
+		return $headers;
 	}
 
 	/**

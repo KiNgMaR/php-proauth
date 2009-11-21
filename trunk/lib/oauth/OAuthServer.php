@@ -233,10 +233,12 @@ class OAuthServerRequest extends OAuthRequest
 			$_SERVER['REQUEST_URI'];
 
 
+		$page_request_headers = OAuthUtil::getPageRequestHeaders();
+
 		// extract oauth parameters from the Authorization
 		// HTTP header. If present, these take precedence over
 		// GET and POST parameters.
-		$header_parameters = OAuthUtil::getPageRequestAuthorizationHeader();
+		$header_parameters = OAuthUtil::getIfSet($page_request_headers, 'authorization');
 
 		if(!empty($header_parameters))
 		{
@@ -255,32 +257,44 @@ class OAuthServerRequest extends OAuthRequest
 		}
 
 		// The next paragraphs implement section 5.2 from the OAuth Core specs.
-		// ... at least mostly... :TODO: we do not care about the Content-Type (application/x-www-form-urlencoded)
-		// and we rely on PHP to parse the $_POST and $_GET parameters for us.
-		// This *could* break in some weird cases, where URL decoding is done very strangely...
-		// ... but that's okay for now!
 
-		// extract POST parameters...
-		$this->params_post = array();
+		// We rely on PHP to parse the $_POST and $_GET parameters for us.
+		// This *could* break in some weird cases, but I am not aware of any
+		// situation out in the wild where that would happen. PHP uses
+		// urldecode() to decode the parameters, which works in accordance to
+		// section 5.1 of the core specs and section 3.4.1.3.1. of the hammer-draft.
+		// C.f. OAuthUtil::urlDecode()
 
-		foreach($_POST as $key => $value)
+		$content_type = trim(OAuthUtil::getIfSet($page_request_headers, 'content-type'));
+
+		if(preg_match('~^application/x-www-form-urlencoded~$i', $content_type))
 		{
-			if(OAuthUtil::isKnownOAuthParameter($key))
+			// extract POST parameters...
+			$this->params_post = array();
+
+			foreach($_POST as $key => $value)
 			{
-				if(!isset($this->params_oauth[$key]))
+				if(OAuthUtil::isKnownOAuthParameter($key))
 				{
-					$this->params_oauth[$key] = $value;
-					unset($_POST[$key]);
+					if(!isset($this->params_oauth[$key]))
+					{
+						$this->params_oauth[$key] = $value;
+						unset($_POST[$key]);
+					}
+					else
+					{
+						throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.', 400);
+					}
 				}
 				else
 				{
-					throw new OAuthException('You cannot specify the "' . $key . '" parameter multiple times.', 400);
+					$this->params_post[$key] = $value;
 				}
 			}
-			else
-			{
-				$this->params_post[$key] = $value;
-			}
+		}
+		else
+		{
+			$_POST = array();
 		}
 
 		// extract GET parameters...
