@@ -351,6 +351,10 @@ class OAuthToken
 	protected $secret;
 	protected $additional_params = array();
 
+	/**
+	 * @param token string
+	 * @param secret string
+	 **/
 	public function __construct($token, $secret)
 	{
 		$this->token = $token;
@@ -360,6 +364,11 @@ class OAuthToken
 	public function getToken() { return $token; }
 	public function getSecret() { return $secret; }
 
+	/**
+	 * Sets an additional parameter.
+	 * Mainly useful in combination with __toString.
+	 * Escaping any of the arguments is not necessary.
+	 **/
 	public function setAdditionalParam($name, $value)
 	{
 		if($name != 'oauth_token' && $name != 'oauth_secret')
@@ -373,7 +382,7 @@ class OAuthToken
 		$params = array('oauth_token' => $this->token,
 			'oauth_secret' => $this->secret);
 
-		$params = array_merge($params, $this->additional_params);
+		$params = array_merge($this->additional_params, $params);
 
 		return OAuthUtil::joinParametersMap($params);
 	}
