@@ -69,6 +69,9 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 		$this->assertEquals("\x7F",      OAuthUtil::urlDecode('%7F'));
 		$this->assertEquals(mb_convert_encoding(pack('n', 0x0080), 'UTF-8', 'UTF-16'),  OAuthUtil::urlDecode('%C2%80'));
 		$this->assertEquals(mb_convert_encoding(pack('n', 0x3001), 'UTF-8', 'UTF-16'),  OAuthUtil::urlDecode('%E3%80%81'));
+
+		// Additional test as per section 3.4.1.3.1
+		$this->assertEquals('2 q',         OAuthUtil::urlDecode('2+q'));
 	}
 
 	public function testIsKnownOAuthParameter()
