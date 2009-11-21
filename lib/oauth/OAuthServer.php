@@ -265,13 +265,14 @@ class OAuthServerRequest extends OAuthRequest
 		// section 5.1 of the core specs and section 3.4.1.3.1. of the hammer-draft.
 		// C.f. OAuthUtil::urlDecode()
 
+		$this->params_post = array();
+		$this->params_get = array();
+
 		$content_type = trim(OAuthUtil::getIfSet($page_request_headers, 'content-type'));
 
 		if(preg_match('~^application/x-www-form-urlencoded~$i', $content_type))
 		{
 			// extract POST parameters...
-			$this->params_post = array();
-
 			foreach($_POST as $key => $value)
 			{
 				if(OAuthUtil::isKnownOAuthParameter($key))
@@ -280,7 +281,6 @@ class OAuthServerRequest extends OAuthRequest
 					{
 						$this->params_oauth[$key] = $value;
 						unset($_POST[$key]);
-						unset($_REQUEST[$key]);
 					}
 					else
 					{
@@ -296,12 +296,9 @@ class OAuthServerRequest extends OAuthRequest
 		else
 		{
 			$_POST = array();
-			// :TODO: remove all POST parameters from $_REQUEST... this kinda sucks.
 		}
 
 		// extract GET parameters...
-		$this->params_get = array();
-
 		foreach($_GET as $key => $value)
 		{
 			if(OAuthUtil::isKnownOAuthParameter($key))
@@ -310,7 +307,6 @@ class OAuthServerRequest extends OAuthRequest
 				{
 					$this->params_oauth[$key] = $value;
 					unset($_GET[$key]);
-					unset($_REQUEST[$key]);
 				}
 				else
 				{
@@ -327,6 +323,11 @@ class OAuthServerRequest extends OAuthRequest
 				$this->params_get[$key] = $value;
 			}
 		}
+
+		// jesus, this makes me feel bad... :TODO: figure out a better way.
+		$_REQUEST = array_merge($this->params_get, $this->params_post);
+		// we do this btw because $_COOKIE may be in $_REQUEST as well, and we want
+		// only signed and checked parameters in $_GET, $_POST and $_REQUEST.
 
 		// whew, done with the parameter extraction.
 
