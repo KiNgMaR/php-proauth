@@ -240,8 +240,24 @@ class OAuthServerRequest extends OAuthRequest
 
 		$port = (int)$_SERVER['SERVER_PORT'];
 
+		if(preg_match('~^(.+):(\d+)$~', $host, $match))
+		{
+			if((int)$match[1] != $port)
+			{
+				throw new OAuthException('Bad port in the HTTP Host header.', 400);
+			}
+			$host = $match[0];
+		}
+
+		// courtesy: http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address
+		if(!preg_match('~^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$~', $host)
+			&& !preg_match('~^((\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.){3}(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])$~', $host))
+		{
+			throw new OAuthException('Invalid HTTP Host header.', 400);
+		}
+
 		$this->request_url = $scheme . '://' . $host .
-			($port == ($scheme == 'https' ?  443 : 80) ? '' : ':' . $port) .
+			($port == ($scheme == 'https' ? 443 : 80) ? '' : ':' . $port) .
 			$_SERVER['REQUEST_URI'];
 
 
