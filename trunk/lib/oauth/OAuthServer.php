@@ -280,6 +280,7 @@ class OAuthServerRequest extends OAuthRequest
 					{
 						$this->params_oauth[$key] = $value;
 						unset($_POST[$key]);
+						unset($_REQUEST[$key]);
 					}
 					else
 					{
@@ -295,6 +296,7 @@ class OAuthServerRequest extends OAuthRequest
 		else
 		{
 			$_POST = array();
+			// :TODO: remove all POST parameters from $_REQUEST... this kinda sucks.
 		}
 
 		// extract GET parameters...
@@ -308,6 +310,7 @@ class OAuthServerRequest extends OAuthRequest
 				{
 					$this->params_oauth[$key] = $value;
 					unset($_GET[$key]);
+					unset($_REQUEST[$key]);
 				}
 				else
 				{
