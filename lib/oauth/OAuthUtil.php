@@ -3,19 +3,19 @@
 
 class OAuthException extends Exception
 {
-	protected $http_response_code;
+	protected $http_http_status_code;
 	protected $oauth_problem, $oauth_problem_extra_info;
 
 	/**
-	 * Standard constructor. The http_response_code should be set
+	 * Standard constructor. The http_status_code should be set
 	 * according to section 10 of the OAuth Core specs.
-	 * @param int http_response_code
+	 * @param int http_status_code
 	 **/
-	public function __construct($error_msg, $http_response_code = 500, $oauth_problem = '', array $oauth_problem_extra_info = NULL)
+	public function __construct($error_msg, $http_status_code = 500, $oauth_problem = '', array $oauth_problem_extra_info = NULL)
 	{
 		parent::__construct($error_msg);
 
-		$this->http_response_code = $http_response_code;
+		$this->http_status_code = $http_status_code;
 		$this->oauth_problem = $oauth_problem;
 		$this->oauth_problem_descr = $oauth_problem_extra_info;
 	}
@@ -26,18 +26,18 @@ class OAuthException extends Exception
 	 **/
 	public function sendHttpResponseHeader()
 	{
-		$response_codes = array(400 => 'Bad Request',
+		$status_codes = array(400 => 'Bad Request',
 			401 => 'Authorization Required',
 			500 => 'Internal Server Error');
 
-		$response_descr = OAuthUtil::getIfSet($response_codes, $this->http_response_code);
+		$status_descr = OAuthUtil::getIfSet($status_codes, $this->http_status_code);
 
-		if(empty($response_descr))
+		if(empty($status_descr))
 		{
-			throw new Exception('OAuthException with unsupported HTTP response code "' . $this->http_response_code . '"');
+			throw new Exception('OAuthException with unsupported HTTP response code "' . $this->http_status_code . '"');
 		}
 
-		header('HTTP/1.0 ' . $this->http_response_code . ' ' . $response_descr);
+		header('HTTP/1.0 ' . $this->http_status_code . ' ' . $status_descr);
 	}
 
 	/**
@@ -131,29 +131,6 @@ class OAuthUtil
 	}
 
 	/**
-	 * I'd love to use PHP's parse_str for this, but unfortunately, it adheres to the "magic_quotes_gpc" setting
-	 * and replaces characters in parameter names, which is unacceptable.
-	 * @return array
-	 **/
-	static public function splitParametersMap($input)
-	{
-		$result = array();
-
-		$pairs = explode('&', $input);
-		foreach($pairs as $pair)
-		{
-			if(!empty($pair))
-			{
-				$pair = explode('=', $pair);
-
-				$result[self::urlDecode($pair[0])] = self::urlDecode(self::getIfSet($pair, 1, ''));
-			}
-		}
-
-		return $result;
-	}
-
-	/**
 	 * URL decodes the given string (or array!)...
 	 **/
 	static public function urlDecode($input)
@@ -175,6 +152,29 @@ class OAuthUtil
 		{
 			throw new OAuthException('Unsupported parameter type for ' . __FUNCTION__);
 		}
+	}
+
+	/**
+	 * I'd love to use PHP's parse_str for this, but unfortunately, it adheres to the "magic_quotes_gpc" setting
+	 * and replaces characters in parameter names, which is unacceptable.
+	 * @return array
+	 **/
+	static public function splitParametersMap($input)
+	{
+		$result = array();
+
+		$pairs = explode('&', $input);
+		foreach($pairs as $pair)
+		{
+			if(!empty($pair))
+			{
+				$pair = explode('=', $pair);
+
+				$result[self::urlDecode($pair[0])] = self::urlDecode(self::getIfSet($pair, 1, ''));
+			}
+		}
+
+		return $result;
 	}
 
 	/**
@@ -370,11 +370,10 @@ class OAuthUtil
 	}
 
 	/**
-	 * Splits the headers off the body of an HTTP response. Discards the first
-	 * line of the headers (the one with the status code). Splits the headers
-	 * into the headers array.
+	 * Splits the headers off the $body of an HTTP response. Splits the headers
+	 * into the $headers array and fills out $status_code.
 	 **/
-	static public function splitHttpResponse($response, array &$headers, &$body)
+	static public function splitHttpResponse($response, array &$headers, &$body, &$status_code)
 	{
 		// some boring checks, etc:
 		$headers_end = strpos($response, "\r\n\r\n");
@@ -395,7 +394,8 @@ class OAuthUtil
 		{
 			throw new OAuthException('Failed to parse HTTP response: No HTTP/ found.');
 		}
-		list(, $http_version, $response_code, $response_descr) = $match;
+		list(, $http_version, $status_code, $response_descr) = $match;
+		$status_code = (int)$status_code;
 
 		// parse the headers...
 		// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2

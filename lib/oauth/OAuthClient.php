@@ -290,7 +290,15 @@ class OAuthCurlClient extends OAuthClientBase
 
 		curl_setopt($this->curl_handle, CURLOPT_HTTPHEADER, $http_headers);
 
-		return new OAuthCurlClientResponse($this->curl_handle);
+		$response = curl_exec($curl_handle);
+		$info = curl_getinfo($curl_handle);
+
+		if(empty($response) || OAuthUtil::getIfSet($info, 'http_code') == 0)
+		{
+			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($curl_handle), 0);
+		}
+
+		return new OAuthClientResponse($response);
 	}
 
 	public function getTempToken(array $params = array())
@@ -312,54 +320,83 @@ class OAuthCurlClient extends OAuthClientBase
 }
 
 
-class OAuthCurlClientResponse
+class OAuthClientResponse
 {
 	protected $headers;
 	protected $body;
-	protected $response_code;
+	protected $status_code;
 
-	public function __construct($curl_handle)
+	/**
+	 * Constructs a response instance from an HTTP response's headers and body.
+	 * Will throw on 400 and 401 return codes, if an oauth_problem has been specified.
+	 **/
+	public function __construct(array &$headers, &$body, $status_code = 0)
 	{
-		$response = curl_exec($curl_handle);
+		$body_params = array();
 
-		$info = curl_getinfo($curl_handle);
-
-		if(empty($response) || OAuthUtil::getIfSet($info, 'http_code') == 0)
+		if(preg_match('~^application/x-www-form-urlencoded~i', OAuthUtil::getIfSet($headers, 'content-type', '')))
 		{
-			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($curl_handle), 0);
+			$body_params = OAuthUtil::splitParametersMap($body);
 		}
 
-		$this->response_code = (int)OAuthUtil::getIfSet($info, 'http_code');
-
-		$headers = array();
-		$body = '';
-
-		OAuthUtil::splitHttpResponse($response, $headers, $body);
-		unset($response);
-
-		if($this->response_code == 400 || $this->response_code == 401)
+		if($status_code > 0)
 		{
-			$oauth_problem = ''; $oauth_problem_extra_info = '';
-			$oauth_problem_params = array();
+			$this->status_code = $status_code;
+		}
+
+		if($this->status_code == 400 || $this->status_code == 401)
+		{
+			$description = 'An error occured'; $problem = ''; $problem_extra_info = array();
+			$problem_params = array();
 
 			if(isset($headers['www-authenticate']))
 			{
-				$oauth_problem_params = OAuthUtil::parseHttpAuthorizationHeader($headers['www-authenticate'], true);
+				$problem_params = OAuthUtil::parseHttpAuthorizationHeader($headers['www-authenticate'], true);
+				unset($problem_params['realm']);
 			}
 
-			if(empty($oauth_problem_params['oauth_problem']))
+			if(empty($problem_params['oauth_problem']))
 			{
-				if(preg_match('~^application/x-www-form-urlencoded~i', OAuthUtil::getIfSet($headers, 'content-type', '')))
+				$problem_params = $body_params;
+			}
+
+			if(!empty($problem_params['oauth_problem']))
+			{
+				$problem = $problem_params['oauth_problem'];
+				unset($problem_params['oauth_problem']);
+
+				$advice .= ': ' . $problem;
+
+				if(!empty($problem_params['oauth_problem_advice']))
 				{
-					
+					$advice .= ': ' . $problem_params['oauth_problem_advice'];
 				}
-			}
+				unset($problem_params['oauth_problem_advice']);
 
-			if(!empty($oauth_problem_params['oauth_problem']))
-			{
-				$oauth_problem = $oauth_problem_params['oauth_problem'];
+				$problem_extra_info = $problem_params;
+				unset($problem_params);
+
+				throw new OAuthException($description, $this->status_code, $problem, $problem_extra_info);
 			}
 		}
+
+		
 	}
+
+	/**
+	 * Constructs a response instance from a complete HTTP response string, including the headers.
+	 **/
+	public function __construct(&$complete_response_str)
+	{
+		$headers = array();
+		$body = '';
+
+		OAuthUtil::splitHttpResponse($complete_response_str, $headers, $body, $this->status_code);
+		unset($complete_response_str);
+
+		self::__construct($headers, $body);
+	}
+
+	public function getStatusCode() { return $this->status_code; }
 }
 
