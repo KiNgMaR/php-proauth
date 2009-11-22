@@ -229,7 +229,7 @@ class OAuthCurlClient extends OAuthClientBase
 		curl_setopt($this->curl_handle, CURLOPT_CONNECTTIMEOUT, 5);
 		curl_setopt($this->curl_handle, CURLOPT_TIMEOUT, 30);
 
-		curl_setopt($this->curl_handle, CURLOPT_USERAGENT, 'php-proauth (http://code.google.com/p/php-proauth/) using libcurl');
+		curl_setopt($this->curl_handle, CURLOPT_USERAGENT, 'php-proauth/1.0 (http://code.google.com/p/php-proauth/) using libcurl');
 
 		// ignore this absolutely stupid warning:
 		// CURLOPT_FOLLOWLOCATION cannot be activated when in safe_mode or an open_basedir is set.
@@ -316,6 +316,7 @@ class OAuthCurlClientResponse
 {
 	protected $headers;
 	protected $body;
+	protected $response_code;
 
 	public function __construct($curl_handle)
 	{
@@ -328,7 +329,37 @@ class OAuthCurlClientResponse
 			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($curl_handle), 0);
 		}
 
-		
+		$this->response_code = (int)OAuthUtil::getIfSet($info, 'http_code');
+
+		$headers = array();
+		$body = '';
+
+		OAuthUtil::splitHttpResponse($response, $headers, $body);
+		unset($response);
+
+		if($this->response_code == 400 || $this->response_code == 401)
+		{
+			$oauth_problem = ''; $oauth_problem_extra_info = '';
+			$oauth_problem_params = array();
+
+			if(isset($headers['www-authenticate']))
+			{
+				$oauth_problem_params = OAuthUtil::parseHttpAuthorizationHeader($headers['www-authenticate'], true);
+			}
+
+			if(empty($oauth_problem_params['oauth_problem']))
+			{
+				if(preg_match('~^application/x-www-form-urlencoded~i', OAuthUtil::getIfSet($headers, 'content-type', '')))
+				{
+					
+				}
+			}
+
+			if(!empty($oauth_problem_params['oauth_problem']))
+			{
+				$oauth_problem = $oauth_problem_params['oauth_problem'];
+			}
+		}
 	}
 }
 

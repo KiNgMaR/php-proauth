@@ -259,4 +259,17 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 		$headers_actual = array();
 		OAuthUtil::splitHttpResponse("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nlol wat\r\n\r\n", $headers_actual, $body_actual);
 	}
+
+	public function testSplitParametersMap()
+	{
+		// tests inspired by http://wiki.oauth.net/TestCases
+		$this->assertEquals(array(), OAuthUtil::splitParametersMap(''));
+		$this->assertEquals(array('name' => ''), OAuthUtil::splitParametersMap('name'));
+		$this->assertEquals(array('name' => ''), OAuthUtil::splitParametersMap('name='));
+		$this->assertEquals(array('name' => ''), OAuthUtil::splitParametersMap('name=&'));
+		$this->assertEquals(array('a' => 'b'), OAuthUtil::splitParametersMap('a=b'));
+		$this->assertEquals(array('a' => 'b', 'c' => 'd'), OAuthUtil::splitParametersMap('a=b&c=d'));
+		$this->assertEquals(array('a' => 'x y', 'a2' => 'x!y'), OAuthUtil::splitParametersMap('a=x%20y&a2=x%21y'));
+		$this->assertEquals(array('x!y' => 'a', 'x' => 'a'), OAuthUtil::splitParametersMap('x=a&x%21y=a'));
+	}
 }
