@@ -29,8 +29,8 @@ class OAuthRequest
 	public function getSignatureBaseString()
 	{
 		$parts = array(
-			strtoupper($this->http_method),
-			OAuthUtil::normalizeRequestURL($this->request_url),
+			$this->getHTTPMethod(),
+			$this->getRequestUrl(true),
 			$this->getSignableParametersString()
 		);
 
@@ -116,8 +116,42 @@ class OAuthRequest
 		$this->realm = $new_realm;
 	}
 
-/*	public function getSignature(OAuthSignatureMethod $method)
+	/**
+	 * @return string
+	 **/
+	public function getHTTPMethod()
 	{
-		
-	}*/
+		return strtoupper($this->http_method);
+	}
+
+	/**
+	 * @return string
+	 **/
+	public function getRequestUrl($normalize = false)
+	{
+		if(!$normalize)
+		{
+			return $this->request_url;
+		}
+		else
+		{
+			return OAuthUtil::normalizeRequestURL($this->request_url);
+		}
+	}
+
+	/**
+	 * @return array
+	 **/
+	public function getPostParameters()
+	{
+		return $this->parameters_post;
+	}
+
+	/**
+	 * @return array
+	 **/
+	public function getGetParameters()
+	{
+		return $this->parameters_get;
+	}
 }
