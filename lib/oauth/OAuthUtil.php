@@ -345,6 +345,31 @@ class OAuthUtil
 }
 
 
+class OAuthConsumer
+{
+	protected $key;
+	protected $secret;
+
+	/**
+	 * @param key string
+	 * @param secret string
+	 **/
+	public function __construct($key, $secret)
+	{
+		if(!is_string($key) || !is_string($secret))
+		{
+			throw new OAuthException('Consumer key and secret MUST be string values.');
+		}
+
+		$this->key = $key;
+		$this->secret = $secret;
+	}
+
+	public function getKey() { return $key; }
+	public function getSecret() { return $secret; }
+}
+
+
 class OAuthToken
 {
 	protected $token;
@@ -357,6 +382,11 @@ class OAuthToken
 	 **/
 	public function __construct($token, $secret)
 	{
+		if(!is_string($token) || !is_string($secret))
+		{
+			throw new OAuthException('Token and secret MUST be string values.');
+		}
+
 		$this->token = $token;
 		$this->secret = $secret;
 	}
