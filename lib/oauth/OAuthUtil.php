@@ -131,6 +131,29 @@ class OAuthUtil
 	}
 
 	/**
+	 * I'd love to use PHP's parse_str for this, but unfortunately, it adheres to the "magic_quotes_gpc" setting
+	 * and replaces characters in parameter names, which is unacceptable.
+	 * @return array
+	 **/
+	static public function splitParametersMap($input)
+	{
+		$result = array();
+
+		$pairs = explode('&', $input);
+		foreach($pairs as $pair)
+		{
+			if(!empty($pair))
+			{
+				$pair = explode('=', $pair);
+
+				$result[self::urlDecode($pair[0])] = self::urlDecode(self::getIfSet($pair, 1, ''));
+			}
+		}
+
+		return $result;
+	}
+
+	/**
 	 * URL decodes the given string (or array!)...
 	 **/
 	static public function urlDecode($input)
@@ -203,9 +226,10 @@ class OAuthUtil
 	 * Parses an HTTP Authorization header according to section 5.4.1 of
 	 * the OAuth Core specs.
 	 * @param header_string string e.g. 'OAuth realm="...", oauth_token="..." ...'
+	 * @param allow_all_param_names bool If this is false, only the "realm" and isKnownOAuthParameter()s will be returned.
 	 * @return array An array with all the oauth parameters (unencoded!) and the realm string, or false if the header is not an OAuth header.
 	 **/
-	static public function parseHttpAuthorizationHeader($header_string)
+	static public function parseHttpAuthorizationHeader($header_string, $allow_all_param_names = false)
 	{
 		// The extension auth-scheme (as defined by RFC2617) is "OAuth" and is case-insensitive.
 		if(!preg_match('~^OAuth\s+(.+)$~si', $header_string, $match))
@@ -238,7 +262,7 @@ class OAuthUtil
 					$name = self::urlDecode($name);
 					$value = self::urlDecode(substr($value, 1, -1));
 
-					if(strpos($value, '"') === false && (self::isKnownOAuthParameter($name) || $name == 'realm'))
+					if(strpos($value, '"') === false && ($allow_all_param_names || self::isKnownOAuthParameter($name) || $name == 'realm'))
 					{
 						// The OPTIONAL realm parameter is added and interpreted per RFC2617.
 						$syntax_error = false;
@@ -406,6 +430,8 @@ class OAuthUtil
 
 		// assign the body content:
 		$body = ltrim(substr($response, $headers_end));
+
+		unset($response); // release some memory.
 	}
 }
 
