@@ -201,4 +201,53 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 	{
 		OAuthUtil::validateCallbackURL("whadd\r\nup");
 	}
+
+	public function testSplitHttpResponse()
+	{
+		$some_headers = "HTTP/1.0 404 Not Found\r\n" .
+			"Date: Sun, 22 Nov 2009 15:43:44 GMT\r\n" .
+			"Server: Apache/2.2.4 (Linux/SUSE) mod_ssl/2.2.4\r\n" .
+				"\tOpenSSL/0.9.8e PHP/5.2.6 with Suhosin-Patch mod_python/3.3.1 Python/2.5.1 mod_perl/2.0.3 Perl/v5.8.8\r\n" .
+			"Connection: Keep-Alive\r\n" .
+			"Keep-Alive: timeout=15, max=100\r\n" .
+			"Etag: \"1cad180-67187-31a3e140\"\r\n";
+
+		$headers_expected = array('date' => 'Sun, 22 Nov 2009 15:43:44 GMT',
+			'server' => 'Apache/2.2.4 (Linux/SUSE) mod_ssl/2.2.4 OpenSSL/0.9.8e PHP/5.2.6 with Suhosin-Patch mod_python/3.3.1 Python/2.5.1 mod_perl/2.0.3 Perl/v5.8.8',
+			'connection' => 'Keep-Alive',
+			'keep-alive' => 'timeout=15, max=100',
+			'etag' => '"1cad180-67187-31a3e140"');
+
+		$headers_actual = array();
+		OAuthUtil::splitHttpResponse($some_headers . "\r\nHello World!", $headers_actual, $body_actual);
+		$this->assertEquals($headers_expected, $headers_actual);
+		$this->assertEquals('Hello World!', $body_actual);
+
+		$some_headers .= "WWW-Authenticate: OAuth realm=\"http://sp.example.com\",\r\n" .
+			"\toauth_problem=\"version_rejected\",\r\n" .
+			"\toauth_acceptable_versions=\"1.0-1.0\"\r\n" .
+			"\toauth_problem_advice=\"Fix%20your%20client\"\r\n";
+
+		$headers_expected['www-authenticate'] = 'OAuth realm="http://sp.example.com", oauth_problem="version_rejected", oauth_acceptable_versions="1.0-1.0" ' .
+			'oauth_problem_advice="Fix%20your%20client"';
+
+		$headers_actual = array();
+		OAuthUtil::splitHttpResponse($some_headers, $headers_actual, $body_actual);
+		$this->assertEquals($headers_expected, $headers_actual);
+		$this->assertEquals('', $body_actual);
+
+		$headers_actual = array();
+		OAuthUtil::splitHttpResponse("HTTP/1.1 200 OK\r\n\r\n", $headers_actual, $body_actual);
+		$this->assertEquals(array(), $headers_actual);
+		$this->assertEquals('', $body_actual);
+	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testSplitHttpResponse2()
+	{
+		$headers_actual = array();
+		OAuthUtil::splitHttpResponse("HTTP/1.1 200 OK\r\n\tContent-Type: text/html\r\n\r\n", $headers_actual, $body_actual);
+	}
 }
