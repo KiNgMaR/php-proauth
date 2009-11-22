@@ -206,7 +206,7 @@ class OAuthClientRequest extends OAuthRequest
 }
 
 
-class OAuthClientWithCurl extends OAuthClientBase
+class OAuthCurlClient extends OAuthClientBase
 {
 	protected $curl_handle = NULL;
 	protected $request_token_url = '';
@@ -224,6 +224,7 @@ class OAuthClientWithCurl extends OAuthClientBase
 		// set all the necessary curl options...
 		curl_setopt($this->curl_handle, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($this->curl_handle, CURLOPT_HEADER, true);
+		curl_setopt($this->curl_handle, CURLOPT_FAILONERROR, false);
 
 		curl_setopt($this->curl_handle, CURLOPT_CONNECTTIMEOUT, 5);
 		curl_setopt($this->curl_handle, CURLOPT_TIMEOUT, 30);
@@ -289,7 +290,7 @@ class OAuthClientWithCurl extends OAuthClientBase
 
 		curl_setopt($this->curl_handle, CURLOPT_HTTPHEADER, $http_headers);
 
-		$response = curl_exec($this->curl_handle);
+		return new OAuthCurlClientResponse($this->curl_handle);
 	}
 
 	public function getTempToken(array $params = array())
@@ -307,6 +308,27 @@ class OAuthClientWithCurl extends OAuthClientBase
 		{
 			curl_close($this->curl_handle);
 		}
+	}
+}
+
+
+class OAuthCurlClientResponse
+{
+	protected $headers;
+	protected $body;
+
+	public function __construct($curl_handle)
+	{
+		$response = curl_exec($curl_handle);
+
+		$info = curl_getinfo($curl_handle);
+
+		if(empty($response) || OAuthUtil::getIfSet($info, 'http_code') == 0)
+		{
+			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($curl_handle), 0);
+		}
+
+		
 	}
 }
 

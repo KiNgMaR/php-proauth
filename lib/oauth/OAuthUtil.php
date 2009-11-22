@@ -326,6 +326,8 @@ class OAuthUtil
 
 		if($url === 'oob')
 		{
+			// "out-of-band configuration", such as a desktop client,
+			// that doesn't have a http:// redir URL.
 			return $url;
 		}
 
@@ -341,6 +343,64 @@ class OAuthUtil
 		}
 
 		throw new OAuthException('An invalid callback URL has been used.', 401);
+	}
+
+	/**
+	 * Splits the headers off the body of an HTTP response. Discards the first
+	 * line of the headers (the one with the status code). Splits the headers
+	 * into the headers array.
+	 **/
+	static public function splitHttpResponse($response, array &$headers, &$body)
+	{
+		// some boring checks, etc:
+		$headers_end = strpos($response, "\r\n\r\n");
+
+		if($headers_end === false)
+		{
+			$headers_end = strpos($response, "\n\n");
+		}
+
+		if($headers_end === false)
+		{
+			// response without body...
+			$headers_end = strlen($response);
+		}
+
+		// parse and verify the first line:
+		if(!preg_match('~^HTTP/(\d\.\d)\s+(\d+)\s+([ \w]+)\r?\n~i', $response, $match))
+		{
+			throw new OAuthException('Failed to parse HTTP response: No HTTP/ found.');
+		}
+		list(, $http_version, $response_code, $response_descr) = $match;
+
+		// parse the headers...
+		// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
+		// the link is just for reference, we do not actually implement
+		// all of the specs :(
+		$header_str = trim(substr($response, 0, $headers_end));
+		$headers = array();
+
+		$lines = preg_split('~\r?\n~', $header_str);
+		$header_name = '';
+		foreach($lines as $line)
+		{
+			if(preg_match('~^[ \t]+(.+)~', $line, $match))
+			{
+				if(empty($header_name))
+				{
+					throw new OAuthException('Error while parsing HTTP response headers: Continuated header without name.');
+				}
+				$headers[$header_name] .= ' ' . $match[1];
+			}
+			elseif(preg_match('~^(.+?):\s*(.*?)$~', $line, $match))
+			{
+				$header_name = strtolower($match[1]);
+				$headers[$header_name] = trim($match[2]);
+			}
+		}
+
+		// assign the body content:
+		$body = ltrim(substr($response, $headers_end));
 	}
 }
 
