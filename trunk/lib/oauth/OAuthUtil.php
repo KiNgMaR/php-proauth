@@ -381,6 +381,7 @@ class OAuthUtil
 		$headers = array();
 
 		$lines = preg_split('~\r?\n~', $header_str);
+		array_shift($lines); // remove the first line.
 		$header_name = '';
 		foreach($lines as $line)
 		{
@@ -396,6 +397,10 @@ class OAuthUtil
 			{
 				$header_name = strtolower($match[1]);
 				$headers[$header_name] = trim($match[2]);
+			}
+			else
+			{
+				throw new OAuthException('Error while parsing HTTP response headers: Weird-looking/unsupported header line.');
 			}
 		}
 

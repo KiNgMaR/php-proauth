@@ -250,4 +250,13 @@ class OAuthUtilsTest extends PHPUnit_Framework_TestCase
 		$headers_actual = array();
 		OAuthUtil::splitHttpResponse("HTTP/1.1 200 OK\r\n\tContent-Type: text/html\r\n\r\n", $headers_actual, $body_actual);
 	}
+
+	/**
+	 * @expectedException OAuthException
+	 **/
+	public function testSplitHttpResponse3()
+	{
+		$headers_actual = array();
+		OAuthUtil::splitHttpResponse("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nlol wat\r\n\r\n", $headers_actual, $body_actual);
+	}
 }
