@@ -192,6 +192,8 @@ class OAuthClientRequest extends OAuthRequest
 			$params['realm'] = $this->realm;
 		}
 
+		// possible problem: if params_oauth contained a value named
+		// realm, it would overwrite the real realm. It shouldn't, however.
 		$params = array_merge($params, $this->params_oauth);
 
 		foreach($params as $key => $value)
@@ -211,27 +213,41 @@ class OAuthClientWithCurl extends OAuthClientBase
 	protected $authorize_url = '';
 	protected $access_token_url = '';
 
+	/**
+	 * @see OAuthClientBase::__construct
+	 **/
 	public function __construct(OAuthConsumer $consumer, OAuthToken $token, OAuthSignatureMethod $signature_method)
 	{
 		parent::__construct($consumer, $token, $signature_method);
 
 		$this->curl_handle = curl_init();
+		// set all the necessary curl options...
 		curl_setopt($this->curl_handle, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_HEADER, true);
+		curl_setopt($this->curl_handle, CURLOPT_HEADER, true);
 
 		curl_setopt($this->curl_handle, CURLOPT_CONNECTTIMEOUT, 5);
 		curl_setopt($this->curl_handle, CURLOPT_TIMEOUT, 30);
 
+		curl_setopt($this->curl_handle, CURLOPT_USERAGENT, 'php-proauth (http://code.google.com/p/php-proauth/) using libcurl');
+
 		// ignore this absolutely stupid warning:
 		// CURLOPT_FOLLOWLOCATION cannot be activated when in safe_mode or an open_basedir is set.
 		@curl_setopt($this->curl_handle, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($this->curl_handle, CURLOPT_MAXREDIRS, 10);
 
-		// to avoid possibly unwanted SSL problems.
-		// :TODO: make this configurable.
+		// to avoid possibly unwanted SSL problems. :TODO: make this configurable.
 		curl_setopt($this->curl_handle, CURLOPT_SSL_VERIFYPEER, false);
 		curl_setopt($this->curl_handle, CURLOPT_SSL_VERIFYHOST, false);
+
+		// enable compression where supported:
+		curl_setopt($this->curl_handle, CURLOPT_ENCODING, '');
 	}
 
+	/**
+	 * Sets the Service Provider-provided URLs this client instance will use
+	 * to get a temp/request token, to ask for authorization and to get the session/access token.
+	 * Once you obtained an access token, you do no longer need this method.
+	 **/
 	public function setOAuthFlowUrls($request_token_url, $authorize_url, $access_token_url)
 	{
 		$this->request_token_url = $request_token_url;
@@ -239,6 +255,11 @@ class OAuthClientWithCurl extends OAuthClientBase
 		$this->access_token_url = $access_token_url;
 	}
 
+	/**
+	 * Executes the given request using libcurl.
+	 * Returns the response body as a string or
+	 * throws an OAuchException on errors.
+	 **/
 	public function executeRequest(OAuthRequest $req)
 	{
 		$req->sign();
@@ -248,6 +269,9 @@ class OAuthClientWithCurl extends OAuthClientBase
 		$http_headers[] = 'Authorization: ' . $req->getAuthorizationHeader();
 
 		$url = $req->getRequestUrl(true);
+		$url .= '?' . OAuthUtil::joinParametersMap($req->getGetParameters());
+
+		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
 
 		if($req->getHTTPMethod() == 'POST')
 		{
@@ -263,9 +287,6 @@ class OAuthClientWithCurl extends OAuthClientBase
 			curl_setopt($this->curl_handle, CURLOPT_HTTPGET, true);
 		}
 
-		$url .= '?' . http_build_query($req->getGetParameters(), '', '&');
-
-		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
 		curl_setopt($this->curl_handle, CURLOPT_HTTPHEADER, $http_headers);
 
 		$response = curl_exec($this->curl_handle);
