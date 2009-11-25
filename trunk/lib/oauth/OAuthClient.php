@@ -158,6 +158,7 @@ class OAuthClientRequest extends OAuthRequest
 	 **/
 	public function sign()
 	{
+		// :TODO: Only add timestamp+nonce if the signature method requires it.
 		$this->params_oauth['oauth_timestamp'] = $this->client->generateTimestamp();
 		$this->params_oauth['oauth_nonce'] = $this->client->generateNonce();
 
@@ -201,7 +202,7 @@ class OAuthClientRequest extends OAuthRequest
 			$result .= OAuthUtil::urlEncode($key) . '="' . OAuthUtil::urlEncode($value) . '",';
 		}
 
-		return substr($result, 0, -2);
+		return substr($result, 0, -1);
 	}
 }
 
@@ -258,7 +259,7 @@ class OAuthCurlClient extends OAuthClientBase
 
 	/**
 	 * Executes the given request using libcurl.
-	 * Returns the response body as a string or
+	 * Returns an OAuthClientResponse instance or
 	 * throws an OAuchException on errors.
 	 **/
 	public function executeRequest(OAuthRequest $req)
@@ -267,13 +268,16 @@ class OAuthCurlClient extends OAuthClientBase
 
 		$http_headers = array();
 
+		// Use the Authorization header for oauth protocol parameters:
 		$http_headers[] = 'Authorization: ' . $req->getAuthorizationHeader();
 
+		// Add GET parameters to the URL:
 		$url = $req->getRequestUrl(true);
 		$url .= '?' . OAuthUtil::joinParametersMap($req->getGetParameters());
 
 		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
 
+		// Add POST parameters, if there are any.
 		if($req->getHTTPMethod() == 'POST')
 		{
 			$http_headers[] = 'Expect:'; // avoid stupid HTTP status code 100.
@@ -290,6 +294,7 @@ class OAuthCurlClient extends OAuthClientBase
 
 		curl_setopt($this->curl_handle, CURLOPT_HTTPHEADER, $http_headers);
 
+		// Fetch the response synchronously:
 		$response = curl_exec($curl_handle);
 		$info = curl_getinfo($curl_handle);
 
@@ -298,6 +303,7 @@ class OAuthCurlClient extends OAuthClientBase
 			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($curl_handle), 0);
 		}
 
+		// If we received some response, create an OAuthClientResponse instance from it.
 		return new OAuthClientResponse($response);
 	}
 
@@ -334,11 +340,14 @@ class OAuthClientResponse
 	{
 		$body_params = array();
 
+		// If the response content type is www-form-urlencoded, parse the body:
 		if(preg_match('~^application/x-www-form-urlencoded~i', OAuthUtil::getIfSet($headers, 'content-type', '')))
 		{
 			$body_params = OAuthUtil::splitParametersMap($body);
 		}
 
+		// Update this->status_code, if necessary.
+		// some derived classes may have set it already.
 		if($status_code > 0)
 		{
 			$this->status_code = $status_code;
@@ -346,25 +355,36 @@ class OAuthClientResponse
 
 		if($this->status_code == 400 || $this->status_code == 401)
 		{
+			// The error codes 400 and 401 are suggested to have special meanings
+			// in section 3.2. of the specs.
 			$description = 'An error occured'; $problem = ''; $problem_extra_info = array();
 			$problem_params = array();
 
+			// If the server included a WWW-Authenticate response header,
+			// it may include oauth_problem parameters. Therfore, parse it:
 			if(isset($headers['www-authenticate']))
 			{
 				$problem_params = OAuthUtil::parseHttpAuthorizationHeader($headers['www-authenticate'], true);
+				// :TODO: Maybe save the realm some place?
 				unset($problem_params['realm']);
 			}
 
+			// If the WWW-Authenticate response header doesn't have an oauth_problem,
+			// look for it in the body.
 			if(empty($problem_params['oauth_problem']))
 			{
 				$problem_params = $body_params;
 			}
 
+			// Handle the oauth_problem parameter along the guidelines
+			// that http://oauth.pbworks.com/ProblemReporting suggests.
 			if(!empty($problem_params['oauth_problem']))
 			{
+				// We found an oauth_problem parameter. Let's identify it.
 				$problem = $problem_params['oauth_problem'];
 				unset($problem_params['oauth_problem']);
 
+				// Form a human-readable problem description:
 				$advice .= ': ' . $problem;
 
 				if(!empty($problem_params['oauth_problem_advice']))
@@ -373,9 +393,12 @@ class OAuthClientResponse
 				}
 				unset($problem_params['oauth_problem_advice']);
 
+				// The rest of the parameters probably contains more useful
+				// information about the error.
 				$problem_extra_info = $problem_params;
 				unset($problem_params);
 
+				// Bubble up this error.
 				throw new OAuthException($description, $this->status_code, $problem, $problem_extra_info);
 			}
 		}
