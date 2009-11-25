@@ -199,10 +199,12 @@ class OAuthClientRequest extends OAuthRequest
 
 		foreach($params as $key => $value)
 		{
-			$result .= OAuthUtil::urlEncode($key) . '="' . OAuthUtil::urlEncode($value) . '",';
+			// we could also spread the header over multiple lines, but some very
+			// stupid HTTP servers may not support that, so all goes on one line!
+			$result .= OAuthUtil::urlEncode($key) . '="' . OAuthUtil::urlEncode($value) . '", ';
 		}
 
-		return substr($result, 0, -1);
+		return rtrim($result, ', ');
 	}
 }
 
