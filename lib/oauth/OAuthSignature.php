@@ -1,5 +1,13 @@
 <?php
+/**
+ * Defines an abstract base class (OAuthSignatureMethod) that
+ * can be used for OAuth signature calculation and comparison.
+ * Also defines some signature method implementations.
+ **/
 
+/**
+ * The base class that all signature method classes have to be derived from.
+ **/
 abstract class OAuthSignatureMethod
 {
 	/**
@@ -36,6 +44,36 @@ abstract class OAuthSignatureMethod
 }
 
 
+/**
+ * Implements the PLAINTEXT signature method, as defined by
+ * section 3.4.4. of the specs.
+ **/
+class OAuthSignaturePlainText extends OAuthSignatureMethod
+{
+	public function getName()
+	{
+		return 'PLAINTEXT';
+	}
+
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	{
+		$key_parts = array(
+			$consumer->getSecret(),
+			is_object($token) ? $token->getSecret() : ''
+		);
+
+		$key_parts = OAuthUtil::urlEncode($key_parts);
+		return implode('&', $key_parts);
+	}
+}
+
+
+/**
+ * Implements the RSA-SHA signature method, as defined by
+ * section 3.4.3. of the specs.
+ * This is the most widespread and best tested and documented
+ * method and should therefore be used in 99% of all cases.
+ **/
 class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
 {
 	public function getName()
@@ -65,6 +103,9 @@ class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
 		}
 		else
 		{
+			// Fallback for PHP setups that do not have the hash extension.
+			// The hash extension has been enabled by default since PHP 5.1.2,
+			// but you never know.
 			$blocksize = 64;
 
 			if(strlen($key) > $blocksize)
@@ -79,7 +120,59 @@ class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
 			$hmac = pack('H*', sha1(($key ^ $opad) . pack('H*', sha1(($key ^ $ipad) . $base_string))));
 		}
 
+		// the result has to be base64 encoded.
 		return base64_encode($hmac);
+	}
+}
+
+
+/**
+ * Implements a non-standard signature method called SALTED-MD5.
+ * Don't use this one.
+ **/
+class OAuthSignatureSaltedMD5 extends OAuthSignatureMethod
+{
+	public function getName()
+	{
+		return 'SALTED-MD5';
+	}
+
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	{
+		$raw = $consumer->getSecret() . "\r\n" .
+			$req->getSignatureBaseString() . "\r\n" .
+			(is_object($token) ? $token->getSecret() : '');
+
+		return strtolower(md5($raw));
+	}
+}
+
+
+/**
+ * Implements a non-standard signature method called HMAC-SHA256.
+ * It follows the specs for HMAC-SHA1, but uses SHA256 instead of SHA1.
+ * Definitely requires a PHP with the hash extension enabled.
+ **/
+class OAuthSignatureHMACSHA256 extends OAuthSignatureMethod
+{
+	public function getName()
+	{
+		return 'HMAC-SHA256';
+	}
+
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	{
+		$base_string = $req->getSignatureBaseString();
+
+		$key_parts = array(
+			$consumer->getSecret(),
+			is_object($token) ? $token->getSecret() : ''
+		);
+
+		$key_parts = OAuthUtil::urlEncode($key_parts);
+		$key = implode('&', $key_parts);
+
+		return base64_encode(hash_hmac('sha256', $base_string, $key, true));
 	}
 }
 
