@@ -304,7 +304,7 @@ class OAuthCurlClient extends OAuthClientBase
 		$req = $this->createGetRequest($request_token_url, $params);
 
 		$response = $this->executeRequest($req);
-var_dump($response);exit;
+
 		$token_key = $response->getBodyParamValue('oauth_token');
 		$token_secret = $response->getBodyParamValue('oauth_token_secret');
 
@@ -484,6 +484,14 @@ class OAuthClientResponse
 	public function getBodyParamValue($body_param_name)
 	{
 		return OAuthUtil::getIfSet($this->body_params, $body_param_name, '');
+	}
+
+	/**
+	 * Returns the entire response body as a string.
+	 **/
+	public function getBody()
+	{
+		return $this->body;
 	}
 }
 
