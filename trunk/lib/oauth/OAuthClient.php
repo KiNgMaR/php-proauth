@@ -254,8 +254,9 @@ class OAuthCurlClient extends OAuthClientBase
 	 **/
 	public function setOAuthFlowUrls($request_token_url, $authorize_url, $access_token_url)
 	{
+		// :TODO: consider moving this to the base client class!
 		$this->request_token_url = $request_token_url;
-		$this->authorize_url = $authorize_url;
+		$this->authorize_url = $authorize_url; // :TODO: determine if we need this.
 		$this->access_token_url = $access_token_url;
 	}
 
@@ -302,6 +303,7 @@ class OAuthCurlClient extends OAuthClientBase
 
 		if(empty($response) || OAuthUtil::getIfSet($info, 'http_code') == 0)
 		{
+			// :TODO: not happy we throw this one here, should be moved to the base client class.
 			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($curl_handle), 0);
 		}
 
@@ -309,15 +311,53 @@ class OAuthCurlClient extends OAuthClientBase
 		return new OAuthClientResponse($response);
 	}
 
+	// :TODO: move this to the base client class.
 	public function getTempToken(array $params = array())
 	{
-		
+		// :TODO: We only support GET for request_token...
+		$req = $this->createGetRequest($this->request_token_url, $params);
+
+		$response = $this->executeRequest($req);
+
+		$token_key = $response->getBodyParamValue('oauth_token');
+		$token_secret = $response->getBodyParamValue('oauth_token_secret');
+
+		if(empty($token_key) || empty($token_secret))
+		{
+			throw new Exception('We tried hard, but did not get a request/temp token from the server.');
+		}
+
+		return new OAuthToken($token_key, $token_secret);
 	}
 
-	public function getAuthorizeUrl(array $params = array(), OAuthToken $token = NULL)
+	// :TODO: move this to the base client class.
+	public function getAccessToken(array $params = array(), OAuthToken $token = NULL)
 	{
+		if(is_null($token))
+		{
+			// the $token argument is useful for clients that are not HTTP driven.
+			$token = $this->token;
+		}
+
+		// :TODO: We only support POST for access_token...
+		$req = $this->createPostRequest($this->access_token_url, $params);
+
+		$response = $this->executeRequest($req);
+
+		$token_key = $response->getBodyParamValue('oauth_token');
+		$token_secret = $response->getBodyParamValue('oauth_token_secret');
+
+		if(empty($token_key) || empty($token_secret))
+		{
+			throw new Exception('We tried hard, but did not get an access token from the server.');
+		}
+
+		return new OAuthToken($token_key, $token_secret);
 	}
 
+	/**
+	 * Simple destructor, some cleanup, etc. Boring.
+	 **/
 	public function __destruct()
 	{
 		if($this->curl_handle)
@@ -330,29 +370,41 @@ class OAuthCurlClient extends OAuthClientBase
 
 class OAuthClientResponse
 {
-	protected $headers;
+	protected $headers = array();
 	protected $body;
 	protected $status_code;
+	protected $body_params = array();
 
 	/**
 	 * Constructs a response instance from an HTTP response's headers and body.
 	 * Will throw on 400 and 401 return codes, if an oauth_problem has been specified.
 	 **/
-	public function __construct(array &$headers, &$body, $status_code = 0)
+	public function __construct(array $headers, &$body, $status_code = 0)
 	{
-		$body_params = array();
-
-		// If the response content type is www-form-urlencoded, parse the body:
-		if(preg_match('~^application/x-www-form-urlencoded~i', OAuthUtil::getIfSet($headers, 'content-type', '')))
-		{
-			$body_params = OAuthUtil::splitParametersMap($body);
-		}
+		// copy the body...
+		$this->body = $body;
 
 		// Update this->status_code, if necessary.
 		// some derived classes may have set it already.
 		if($status_code > 0)
 		{
 			$this->status_code = $status_code;
+		}
+
+		// need to lower case all header names :(
+		foreach($headers as $key => $value)
+		{
+			$this->headers[strtolower($key)] = $value;
+		}
+		$headers = $this->headers;
+
+		// will hold parameters from an www-form-urlencoded body:
+		$body_params = array();
+
+		// If the response content type is www-form-urlencoded, parse the body:
+		if(preg_match('~^application/x-www-form-urlencoded~i', OAuthUtil::getIfSet($headers, 'content-type', '')))
+		{
+			$body_params = OAuthUtil::splitParametersMap($body);
 		}
 
 		if($this->status_code == 400 || $this->status_code == 401)
@@ -405,7 +457,7 @@ class OAuthClientResponse
 			}
 		}
 
-		
+		$this->body_params = $body_params;
 	}
 
 	/**
@@ -422,6 +474,29 @@ class OAuthClientResponse
 		self::__construct($headers, $body);
 	}
 
-	public function getStatusCode() { return $this->status_code; }
+	/**
+	 * Returns the HTTP status code. Most probably between 100 and 500-something.
+	 **/
+	public function getStatusCode()
+	{
+		return $this->status_code;
+	}
+
+	/**
+	 * Returns the value of the HTTP header with the name $header_name.
+	 **/
+	public function getHeaderValue($header_name)
+	{
+		return OAuthUtil::getIfSet($this->headers, strtolower($header_name), '');
+	}
+
+	/**
+	 * If the body has been www-form-urlencoded, this method will return
+	 * the value of the parameter that has the name $body_param_name.
+	 **/
+	public function getBodyParamValue($body_param_name)
+	{
+		return OAuthUtil::getIfSet($this->body_params, $body_param_name, '');
+	}
 }
 
