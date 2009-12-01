@@ -16,7 +16,7 @@ class OAuthClientBase
 	protected $token;
 	protected $signature_method;
 
-	public function __construct(OAuthConsumer $consumer, OAuthToken $token, OAuthSignatureMethod $signature_method)
+	public function __construct(OAuthConsumer $consumer, OAuthSignatureMethod $signature_method, OAuthToken $token = NULL)
 	{
 		$this->consumer = $consumer;
 		$this->token = $token;
@@ -110,13 +110,13 @@ class OAuthClientRequest extends OAuthRequest
 	/**
 	 * Usually invoked by OAuthClient. It's not recommended to create instances by other means.
 	 **/
-	public function __construct(OAuthClient $client, $http_method, $url)
+	public function __construct(OAuthClientBase $client, $http_method, $url)
 	{
 		parent::__construct();
 
-		if(strcasecmp($http_method, 'POST') || strcasecmp($http_method, 'GET'))
+		if(strcasecmp($http_method, 'POST') && strcasecmp($http_method, 'GET'))
 		{
-			throw new OAuthException('Unsupported HTTP method in OAuthClientRequest.');
+			throw new OAuthException('Unsupported HTTP method "' . $http_method . '" in OAuthClientRequest.');
 		}
 
 		$this->client = $client;
@@ -126,7 +126,9 @@ class OAuthClientRequest extends OAuthRequest
 		// maybe parse them, or throw an error.
 		$this->request_url = $url;
 
-		$this->params_oauth['oauth_consumer_key'] = $consumer->getKey();
+		$this->params_oauth['oauth_consumer_key'] = $client->getConsumer()->getKey();
+
+		$token = $this->client->getToken();
 		if(!is_null($token))
 		{
 			$this->params_oauth['oauth_token'] = $token->getToken();
@@ -162,8 +164,8 @@ class OAuthClientRequest extends OAuthRequest
 		$this->params_oauth['oauth_timestamp'] = $this->client->generateTimestamp();
 		$this->params_oauth['oauth_nonce'] = $this->client->generateNonce();
 
-		$this->params_oauth['oauth_signature_method'] = $this->client->getSignatureMethod->getName();
-		$this->params_oauth['oauth_signature'] = $this->client->getSignatureMethod->buildSignature($this,
+		$this->params_oauth['oauth_signature_method'] = $this->client->getSignatureMethod()->getName();
+		$this->params_oauth['oauth_signature'] = $this->client->getSignatureMethod()->buildSignature($this,
 			$this->client->getConsumer(), $this->client->getToken()); // is this too long? :P
 
 		if(empty($this->params_oauth['oauth_signature']))
@@ -212,16 +214,13 @@ class OAuthClientRequest extends OAuthRequest
 class OAuthCurlClient extends OAuthClientBase
 {
 	protected $curl_handle = NULL;
-	protected $request_token_url = '';
-	protected $authorize_url = '';
-	protected $access_token_url = '';
 
 	/**
 	 * @see OAuthClientBase::__construct
 	 **/
-	public function __construct(OAuthConsumer $consumer, OAuthToken $token, OAuthSignatureMethod $signature_method)
+	public function __construct(OAuthConsumer $consumer, OAuthSignatureMethod $signature_method, OAuthToken $token = NULL)
 	{
-		parent::__construct($consumer, $token, $signature_method);
+		parent::__construct($consumer, $signature_method, $token);
 
 		$this->curl_handle = curl_init();
 		// set all the necessary curl options...
@@ -245,19 +244,6 @@ class OAuthCurlClient extends OAuthClientBase
 
 		// enable compression where supported:
 		curl_setopt($this->curl_handle, CURLOPT_ENCODING, '');
-	}
-
-	/**
-	 * Sets the Service Provider-provided URLs this client instance will use
-	 * to get a temp/request token, to ask for authorization and to get the session/access token.
-	 * Once you obtained an access token, you do no longer need this method.
-	 **/
-	public function setOAuthFlowUrls($request_token_url, $authorize_url, $access_token_url)
-	{
-		// :TODO: consider moving this to the base client class!
-		$this->request_token_url = $request_token_url;
-		$this->authorize_url = $authorize_url; // :TODO: determine if we need this.
-		$this->access_token_url = $access_token_url;
 	}
 
 	/**
@@ -298,8 +284,8 @@ class OAuthCurlClient extends OAuthClientBase
 		curl_setopt($this->curl_handle, CURLOPT_HTTPHEADER, $http_headers);
 
 		// Fetch the response synchronously:
-		$response = curl_exec($curl_handle);
-		$info = curl_getinfo($curl_handle);
+		$response = curl_exec($this->curl_handle);
+		$info = curl_getinfo($this->curl_handle);
 
 		if(empty($response) || OAuthUtil::getIfSet($info, 'http_code') == 0)
 		{
@@ -308,17 +294,17 @@ class OAuthCurlClient extends OAuthClientBase
 		}
 
 		// If we received some response, create an OAuthClientResponse instance from it.
-		return new OAuthClientResponse($response);
+		return OAuthClientResponse::fromResponseStr($response);
 	}
 
 	// :TODO: move this to the base client class.
-	public function getTempToken(array $params = array())
+	public function _getTempToken($request_token_url, array $params = array())
 	{
 		// :TODO: We only support GET for request_token...
-		$req = $this->createGetRequest($this->request_token_url, $params);
+		$req = $this->createGetRequest($request_token_url, $params);
 
 		$response = $this->executeRequest($req);
-
+var_dump($response);exit;
 		$token_key = $response->getBodyParamValue('oauth_token');
 		$token_secret = $response->getBodyParamValue('oauth_token_secret');
 
@@ -331,7 +317,7 @@ class OAuthCurlClient extends OAuthClientBase
 	}
 
 	// :TODO: move this to the base client class.
-	public function getAccessToken(array $params = array(), OAuthToken $token = NULL)
+	public function _getAccessToken(array $params = array(), OAuthToken $token = NULL)
 	{
 		if(is_null($token))
 		{
@@ -463,15 +449,16 @@ class OAuthClientResponse
 	/**
 	 * Constructs a response instance from a complete HTTP response string, including the headers.
 	 **/
-	public function __construct(&$complete_response_str)
+	public static function fromResponseStr(&$complete_response_str)
 	{
 		$headers = array();
 		$body = '';
+		$status_code = 0;
 
-		OAuthUtil::splitHttpResponse($complete_response_str, $headers, $body, $this->status_code);
+		OAuthUtil::splitHttpResponse($complete_response_str, $headers, $body, $status_code);
 		unset($complete_response_str);
 
-		self::__construct($headers, $body);
+		return new self($headers, $body, $status_code);
 	}
 
 	/**

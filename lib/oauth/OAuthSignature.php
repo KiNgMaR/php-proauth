@@ -19,14 +19,14 @@ abstract class OAuthSignatureMethod
 	 * Must build the signature string from the given parameters and return it.
 	 * @return string
 	 **/
-	abstract public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token);
+	abstract public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token = NULL);
 
 	/**
 	 * Compares the given $signature_string with the one that is defined by req, consumer and token.
 	 * If $signature_string is NULL, the oauth_signature parameter from $req will be used.
 	 * @return bool
 	 **/
-	public function checkSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token, $signature_string = NULL)
+	public function checkSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token = NULL, $signature_string = NULL)
 	{
 		$correct_string = $this->buildSignature($req, $consumer, $token);
 
@@ -55,7 +55,7 @@ class OAuthSignaturePlainText extends OAuthSignatureMethod
 		return 'PLAINTEXT';
 	}
 
-	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token = NULL)
 	{
 		$key_parts = array(
 			$consumer->getSecret(),
@@ -85,7 +85,7 @@ class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
 	 * @author Marc Worrell <marcw@pobox.com>
 	 * @source http://code.google.com/p/oauth-php/source/browse/trunk/library/signature_method/OAuthSignatureMethod_HMAC_SHA1.php
 	 **/
-	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token = NULL)
 	{
 		$base_string = $req->getSignatureBaseString();
 
@@ -137,7 +137,7 @@ class OAuthSignatureSaltedMD5 extends OAuthSignatureMethod
 		return 'SALTED-MD5';
 	}
 
-	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token = NULL)
 	{
 		$raw = $consumer->getSecret() . "\r\n" .
 			$req->getSignatureBaseString() . "\r\n" .
@@ -160,7 +160,7 @@ class OAuthSignatureHMACSHA256 extends OAuthSignatureMethod
 		return 'HMAC-SHA256';
 	}
 
-	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	public function buildSignature(OAuthRequest $req, OAuthConsumer $consumer, OAuthToken $token = NULL)
 	{
 		$base_string = $req->getSignatureBaseString();
 

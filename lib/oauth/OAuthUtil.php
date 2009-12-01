@@ -91,7 +91,7 @@ class OAuthUtil
 	{
 		if(is_array($input))
 		{
-			return array_map(array(self, 'urlEncode'), $input);
+			return array_map(array(__CLASS__, 'urlEncode'), $input);
 		}
 		elseif(is_scalar($input))
 		{
@@ -137,7 +137,7 @@ class OAuthUtil
 	{
 		if(is_array($input))
 		{
-			return array_map(array(self, 'urlDecode'), $input);
+			return array_map(array(__CLASS__, 'urlDecode'), $input);
 		}
 		elseif(is_scalar($input))
 		{
@@ -456,8 +456,8 @@ class OAuthConsumer
 		$this->secret = $secret;
 	}
 
-	public function getKey() { return $key; }
-	public function getSecret() { return $secret; }
+	public function getKey() { return $this->key; }
+	public function getSecret() { return $this->secret; }
 }
 
 

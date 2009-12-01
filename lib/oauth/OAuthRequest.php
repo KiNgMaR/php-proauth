@@ -144,7 +144,7 @@ class OAuthRequest
 	 **/
 	public function getPostParameters()
 	{
-		return $this->parameters_post;
+		return $this->params_post;
 	}
 
 	/**
@@ -152,6 +152,6 @@ class OAuthRequest
 	 **/
 	public function getGetParameters()
 	{
-		return $this->parameters_get;
+		return $this->params_get;
 	}
 }
