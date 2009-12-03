@@ -281,6 +281,8 @@ class OAuthCurlClient extends OAuthClientBase
 			curl_setopt($this->curl_handle, CURLOPT_HTTPGET, true);
 		}
 
+		$http_headers[] = 'Accept: application/x-www-form-urlencoded, application/json, text/xml, */*';
+
 		curl_setopt($this->curl_handle, CURLOPT_HTTPHEADER, $http_headers);
 
 		// Fetch the response synchronously:
