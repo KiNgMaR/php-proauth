@@ -29,6 +29,9 @@ class OAuthServer
 		$this->superglobals_auto_export = $superglobals_auto_export;
 	}
 
+	/**
+	 * Registers a supported signature method.
+	 **/
 	public function addSignatureMethod(OAuthSignatureMethod $method)
 	{
 		$signature_methods[strtoupper($method->getName())] = $method;
@@ -251,7 +254,7 @@ class OAuthServerRequest extends OAuthRequest
 
 		// courtesy: http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address
 		if(!preg_match('~^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$~', $host)
-			&& !preg_match('~^((\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])\.){3}(\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])$~', $host))
+			&& !filter_var($host, FILTER_VALIDATE_IP))
 		{
 			throw new OAuthException('Invalid HTTP Host header.', 400);
 		}
@@ -260,6 +263,10 @@ class OAuthServerRequest extends OAuthRequest
 			($port == ($scheme == 'https' ? 443 : 80) ? '' : ':' . $port) .
 			$_SERVER['REQUEST_URI'];
 
+		if(!filter_var($this->request_url, FILTER_VALIDATE_URL))
+		{
+			throw new OAuthException('Unable to form a valid URL from the request.');
+		}
 
 		$page_request_headers = OAuthUtil::getPageRequestHeaders();
 
@@ -298,7 +305,7 @@ class OAuthServerRequest extends OAuthRequest
 
 		$content_type = trim(OAuthUtil::getIfSet($page_request_headers, 'content-type'));
 
-		if(preg_match('~^application/x-www-form-urlencoded~$i', $content_type))
+		if(preg_match('~^application/x-www-form-urlencoded~i', $content_type))
 		{
 			// extract POST parameters...
 			foreach($_POST as $key => $value)
