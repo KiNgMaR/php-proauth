@@ -296,16 +296,21 @@ class OAuthCurlClient extends OAuthClientBase
 		}
 
 		// If we received some response, create an OAuthClientResponse instance from it.
-		return OAuthClientResponse::fromResponseStr($response);
+		return OAuthClientResponse::fromResponseStr($this, $response);
 	}
 
 	// :TODO: move this to the base client class.
-	public function _getTempToken($request_token_url, array $params = array())
+	public function _getTempToken($request_token_url, array $params = array(), $assume_www_encoded = false)
 	{
 		// :TODO: We only support GET for request_token...
 		$req = $this->createGetRequest($request_token_url, $params);
 
 		$response = $this->executeRequest($req);
+
+		if($assume_www_encoded)
+		{
+			$response->forceWwwEncodedBodyInterpretation();
+		}
 
 		$token_key = $response->getBodyParamValue('oauth_token');
 		$token_secret = $response->getBodyParamValue('oauth_token_secret');
@@ -362,13 +367,16 @@ class OAuthClientResponse
 	protected $body;
 	protected $status_code;
 	protected $body_params = array();
+	protected $client;
 
 	/**
 	 * Constructs a response instance from an HTTP response's headers and body.
 	 * Will throw on 400 and 401 return codes, if an oauth_problem has been specified.
 	 **/
-	public function __construct(array $headers, &$body, $status_code = 0)
+	public function __construct(OAuthClientBase $client, array $headers, &$body, $status_code = 0)
 	{
+		$this->client = $client;
+
 		// copy the body...
 		$this->body = $body;
 
@@ -451,7 +459,7 @@ class OAuthClientResponse
 	/**
 	 * Constructs a response instance from a complete HTTP response string, including the headers.
 	 **/
-	public static function fromResponseStr(&$complete_response_str)
+	public static function fromResponseStr(OAuthClientBase $client, &$complete_response_str)
 	{
 		$headers = array();
 		$body = '';
@@ -460,7 +468,7 @@ class OAuthClientResponse
 		OAuthUtil::splitHttpResponse($complete_response_str, $headers, $body, $status_code);
 		unset($complete_response_str);
 
-		return new self($headers, $body, $status_code);
+		return new self($client, $headers, $body, $status_code);
 	}
 
 	/**
@@ -494,6 +502,28 @@ class OAuthClientResponse
 	public function getBody()
 	{
 		return $this->body;
+	}
+
+	/**
+	 * The existence of this method is an abomination. However,
+	 * popular Web 2.0 service twitter sends their tokens as text/html
+	 * instead of application/x-www-form-urlencoded, so here we go.
+	 * This method parses the body of this response into parameters.
+	 * Use getBodyParamValue after calling this method to get the parameters.
+	 * @return boolean Returns true if any decent looking parameters have been extracted.
+	 **/
+	public function forceWwwEncodedBodyInterpretation()
+	{
+		try
+		{
+			$this->body_params = OAuthUtil::splitParametersMap($this->body);
+		}
+		catch(OAuthException $ex)
+		{
+			return false;
+		}
+
+		return (count($this->body_params) > 0);
 	}
 }
 

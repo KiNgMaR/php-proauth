@@ -170,7 +170,14 @@ class OAuthUtil
 			{
 				$pair = explode('=', $pair);
 
-				$result[self::urlDecode($pair[0])] = self::urlDecode(self::getIfSet($pair, 1, ''));
+				if(count($pair) == 2)
+				{
+					$result[self::urlDecode($pair[0])] = self::urlDecode(self::getIfSet($pair, 1, ''));
+				}
+				else
+				{
+					throw new OAuthException('Invalid parameter to splitParametersMap.');
+				}
 			}
 		}
 
@@ -482,8 +489,8 @@ class OAuthToken
 		$this->secret = $secret;
 	}
 
-	public function getToken() { return $token; }
-	public function getSecret() { return $secret; }
+	public function getToken() { return $this->token; }
+	public function getSecret() { return $this->secret; }
 
 	/**
 	 * Sets an additional parameter.
