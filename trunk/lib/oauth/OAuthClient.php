@@ -29,7 +29,7 @@ class OAuthClientBase
 	 **/
 	public function createRequest($url, array $get_params = array(), array $post_params = array())
 	{
-		$req = new OAuthClientRequest($this->consumer, $this->token, (count($_POST) > 0 ? 'POST' : 'GET'), $url);
+		$req = new OAuthClientRequest($this, (count($_POST) > 0 ? 'POST' : 'GET'), $url);
 
 		$req->setGetParameters($get_params);
 		$req->setPostParameters($post_params);
@@ -42,7 +42,7 @@ class OAuthClientBase
 	 **/
 	public function createPostRequest($url, array $params = array())
 	{
-		$req = new OAuthClientRequest($this->consumer, $this->token, 'POST', $url);
+		$req = new OAuthClientRequest($this, 'POST', $url);
 
 		$req->setPostParameters($params);
 
@@ -106,6 +106,7 @@ class OAuthClientRequest extends OAuthRequest
 {
 	protected $client;
 	protected $signed = false;
+	protected $token;
 
 	/**
 	 * Usually invoked by OAuthClient. It's not recommended to create instances by other means.
@@ -128,12 +129,10 @@ class OAuthClientRequest extends OAuthRequest
 
 		$this->params_oauth['oauth_consumer_key'] = $client->getConsumer()->getKey();
 
-		$token = $this->client->getToken();
-		if(!is_null($token))
-		{
-			$this->params_oauth['oauth_token'] = $token->getToken();
-		}
 		// we do not add oauth_version=1.0 since it's optional (section 7 of the OAuth Core specs)
+
+		// use client token per default:
+		$this->setToken(NULL);
 	}
 
 	/**
@@ -165,8 +164,8 @@ class OAuthClientRequest extends OAuthRequest
 		$this->params_oauth['oauth_nonce'] = $this->client->generateNonce();
 
 		$this->params_oauth['oauth_signature_method'] = $this->client->getSignatureMethod()->getName();
-		$this->params_oauth['oauth_signature'] = $this->client->getSignatureMethod()->buildSignature($this,
-			$this->client->getConsumer(), $this->client->getToken()); // is this too long? :P
+		$this->params_oauth['oauth_signature'] =
+			$this->client->getSignatureMethod()->buildSignature($this, $this->client->getConsumer(), $this->token);
 
 		if(empty($this->params_oauth['oauth_signature']))
 		{
@@ -207,6 +206,16 @@ class OAuthClientRequest extends OAuthRequest
 		}
 
 		return rtrim($result, ', ');
+	}
+
+	public function setToken(OAuthToken $token = NULL)
+	{
+		$this->token = is_object($token) ? $token : $this->client->getToken();
+
+		if(!is_null($token))
+		{
+			$this->params_oauth['oauth_token'] = $this->token->getToken();
+		}
 	}
 }
 
@@ -292,7 +301,7 @@ class OAuthCurlClient extends OAuthClientBase
 		if(empty($response) || OAuthUtil::getIfSet($info, 'http_code') == 0)
 		{
 			// :TODO: not happy we throw this one here, should be moved to the base client class.
-			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($curl_handle), 0);
+			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($this->curl_handle), 0);
 		}
 
 		// If we received some response, create an OAuthClientResponse instance from it.
@@ -324,7 +333,7 @@ class OAuthCurlClient extends OAuthClientBase
 	}
 
 	// :TODO: move this to the base client class.
-	public function _getAccessToken(array $params = array(), OAuthToken $token = NULL)
+	public function _getAccessToken($access_token_url, array $params = array(), OAuthToken $token = NULL, $assume_www_encoded = false)
 	{
 		if(is_null($token))
 		{
@@ -333,9 +342,15 @@ class OAuthCurlClient extends OAuthClientBase
 		}
 
 		// :TODO: We only support POST for access_token...
-		$req = $this->createPostRequest($this->access_token_url, $params);
+		$req = $this->createPostRequest($access_token_url, $params);
+		$req->setToken($token);
 
 		$response = $this->executeRequest($req);
+
+		if($assume_www_encoded)
+		{
+			$response->forceWwwEncodedBodyInterpretation();
+		}
 
 		$token_key = $response->getBodyParamValue('oauth_token');
 		$token_secret = $response->getBodyParamValue('oauth_token_secret');
