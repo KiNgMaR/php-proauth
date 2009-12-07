@@ -99,6 +99,78 @@ class OAuthClientBase
 	 * @return OAuthSignatureMethod
 	 **/
 	public function getSignatureMethod() { return $this->signature_method; }
+
+	/**
+	 * Implements section 2.1. Temporary Credentials.
+	 * @param request_token_url string The target endpoint URL.
+	 * @param params array Additional parameters. Usually none. Will be sent via GET.
+	 * @param assume_www_encoded boolean Read OAuthClientResponse::forceWwwEncodedBodyInterpretation().
+	 * @return An OAuthToken instance with the new temporary request credentials.
+	 **/
+	public function _getTempToken($request_token_url, array $params = array(), $assume_www_encoded = false)
+	{
+		// :TODO: We only support GET for request_temp_token...
+		$req = $this->createGetRequest($request_token_url, $params);
+
+		$response = $this->executeRequest($req);
+
+		if($assume_www_encoded)
+		{
+			// I hate twitter so much...
+			$response->forceWwwEncodedBodyInterpretation();
+		}
+
+		$token_key = $response->getBodyParamValue('oauth_token');
+		$token_secret = $response->getBodyParamValue('oauth_token_secret');
+
+		if(empty($token_key) || empty($token_secret))
+		{
+			throw new OAuthException('We tried hard, but did not get a request/temp token from the server.',
+				$response->getStatusCode());
+		}
+
+		return new OAuthToken($token_key, $token_secret);
+	}
+
+	/**
+	 * Implements section 2.3. Token Credentials.
+	 * @param access_token_url string The target endpoint URL.
+	 * @param params array Additional parameters. Usually none. Will be sent via POST.
+	 * @param token OAuthToken The token to use for signing this request.
+	 * @param assume_www_encoded boolean Read OAuthClientResponse::forceWwwEncodedBodyInterpretation().
+	 * @return An OAuthToken instance with the new authenticated credentials.
+	 **/
+	public function _getAccessToken($access_token_url, array $params = array(), OAuthToken $token = NULL, $assume_www_encoded = false)
+	{
+		if(is_null($token))
+		{
+			// the $token argument is useful for clients that are not HTTP driven.
+			$token = $this->token;
+		}
+
+		// :TODO: We only support POST for access_token...
+		$req = $this->createPostRequest($access_token_url, $params);
+		$req->setToken($token);
+
+		$response = $this->executeRequest($req);
+
+		if($assume_www_encoded)
+		{
+			// Did I already mention that I hate twitter?
+			$response->forceWwwEncodedBodyInterpretation();
+		}
+
+		$token_key = $response->getBodyParamValue('oauth_token');
+		$token_secret = $response->getBodyParamValue('oauth_token_secret');
+
+		if(empty($token_key) || empty($token_secret))
+		{
+			throw new OAuthException('We tried hard, but did not get an access token from the server.',
+				$response->getStatusCode());
+		}
+
+		return new OAuthToken($token_key, $token_secret);
+	}
 }
 
 
@@ -129,7 +201,7 @@ class OAuthClientRequest extends OAuthRequest
 
 		$this->params_oauth['oauth_consumer_key'] = $client->getConsumer()->getKey();
 
-		// we do not add oauth_version=1.0 since it's optional (section 7 of the OAuth Core specs)
+		// we do not add oauth_version=1.0 since it's optional (section 3.1.)
 
 		// use client token per default:
 		$this->setToken(NULL);
@@ -242,7 +314,7 @@ class OAuthCurlClient extends OAuthClientBase
 
 		curl_setopt($this->curl_handle, CURLOPT_USERAGENT, 'php-proauth/1.0 (http://code.google.com/p/php-proauth/) using libcurl');
 
-		// ignore this absolutely stupid warning:
+		// ignore this stupid and soon-to-be-deprecated warning:
 		// CURLOPT_FOLLOWLOCATION cannot be activated when in safe_mode or an open_basedir is set.
 		@curl_setopt($this->curl_handle, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($this->curl_handle, CURLOPT_MAXREDIRS, 10);
@@ -306,61 +378,6 @@ class OAuthCurlClient extends OAuthClientBase
 
 		// If we received some response, create an OAuthClientResponse instance from it.
 		return OAuthClientResponse::fromResponseStr($this, $response);
-	}
-
-	// :TODO: move this to the base client class.
-	public function _getTempToken($request_token_url, array $params = array(), $assume_www_encoded = false)
-	{
-		// :TODO: We only support GET for request_token...
-		$req = $this->createGetRequest($request_token_url, $params);
-
-		$response = $this->executeRequest($req);
-
-		if($assume_www_encoded)
-		{
-			$response->forceWwwEncodedBodyInterpretation();
-		}
-
-		$token_key = $response->getBodyParamValue('oauth_token');
-		$token_secret = $response->getBodyParamValue('oauth_token_secret');
-
-		if(empty($token_key) || empty($token_secret))
-		{
-			throw new Exception('We tried hard, but did not get a request/temp token from the server.');
-		}
-
-		return new OAuthToken($token_key, $token_secret);
-	}
-
-	// :TODO: move this to the base client class.
-	public function _getAccessToken($access_token_url, array $params = array(), OAuthToken $token = NULL, $assume_www_encoded = false)
-	{
-		if(is_null($token))
-		{
-			// the $token argument is useful for clients that are not HTTP driven.
-			$token = $this->token;
-		}
-
-		// :TODO: We only support POST for access_token...
-		$req = $this->createPostRequest($access_token_url, $params);
-		$req->setToken($token);
-
-		$response = $this->executeRequest($req);
-
-		if($assume_www_encoded)
-		{
-			$response->forceWwwEncodedBodyInterpretation();
-		}
-
-		$token_key = $response->getBodyParamValue('oauth_token');
-		$token_secret = $response->getBodyParamValue('oauth_token_secret');
-
-		if(empty($token_key) || empty($token_secret))
-		{
-			throw new Exception('We tried hard, but did not get an access token from the server.');
-		}
-
-		return new OAuthToken($token_key, $token_secret);
 	}
 
 	/**

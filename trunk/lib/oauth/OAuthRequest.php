@@ -24,7 +24,7 @@ class OAuthRequest
 	}
 
 	/**
-	 * Returns the signature base string, as defined by section 9.1 of the OAuth Core specs.
+	 * Returns the signature base string, as defined by section 3.4.1. of the OAuth Core specs.
 	 **/
 	public function getSignatureBaseString()
 	{
@@ -41,7 +41,7 @@ class OAuthRequest
 
 	/**
 	 * Returns a normalized string of all signable parameters, as defined
-	 * by section 9.1.1 of the OAuth Core specs.
+	 * by sections 3.4.1.3. and 3.4.1.3.2. of the OAuth Core specs.
 	 **/
 	protected function getSignableParametersString()
 	{

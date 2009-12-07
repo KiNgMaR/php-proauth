@@ -8,7 +8,7 @@ class OAuthException extends Exception
 
 	/**
 	 * Standard constructor. The http_status_code should be set
-	 * according to section 10 of the OAuth Core specs.
+	 * according to the recommendations in section 3.2. of the OAuth Core specs.
 	 * @param int http_status_code
 	 **/
 	public function __construct($error_msg, $http_status_code = 500, $oauth_problem = '', array $oauth_problem_extra_info = NULL)
@@ -85,7 +85,7 @@ class OAuthUtil
 
 	/**
 	 * Encodes the given string (or array!) according to RFC 3986, as defined
-	 * by the OAuth Core specs section 5.1.
+	 * by the OAuth Core specs section 3.6. "Percent Encoding".
 	 **/
 	static public function urlEncode($input)
 	{
@@ -141,7 +141,7 @@ class OAuthUtil
 		}
 		elseif(is_scalar($input))
 		{
-			// we use urldecode (instead of rawurldecode) here, because section 3.4.1.3.1. of the hammer-draft says:
+			// we use urldecode (instead of rawurldecode) here, because section 3.4.1.3.1. of the specs says:
 			// <quote>While the encoding rules specified in this specification for the purpose of constructing the
 			// signature base string exclude the use of a + character (ASCII code 43) to represent an encoded
 			// space character (ASCII code 32), this practice is widely used in application/x-www-form-urlencoded
@@ -230,8 +230,7 @@ class OAuthUtil
 	}
 
 	/**
-	 * Parses an HTTP Authorization header according to section 5.4.1 of
-	 * the OAuth Core specs.
+	 * Parses an HTTP Authorization header according to section 3.5.1. of the OAuth Core specs.
 	 * @param header_string string e.g. 'OAuth realm="...", oauth_token="..." ...'
 	 * @param allow_all_param_names bool If this is false, only the "realm" and isKnownOAuthParameter()s will be returned.
 	 * @return array An array with all the oauth parameters (unencoded!) and the realm string, or false if the header is not an OAuth header.
@@ -293,7 +292,7 @@ class OAuthUtil
 	}
 
 	/**
-	 * Localizes the given URL according to section 9.1.2 of the OAuth Core specs.
+	 * Normalizes the given URL according to section 3.4.1.2. of the OAuth Core specs.
 	 **/
 	static public function normalizeRequestURL($url)
 	{
@@ -357,7 +356,7 @@ class OAuthUtil
 
 		if($url === 'oob')
 		{
-			// "out-of-band configuration", such as a desktop client,
+			// "out-of-band configuration", such as a desktop client
 			// that doesn't have a http:// redir URL.
 			return $url;
 		}
