@@ -23,5 +23,6 @@ abstract class OAuthServerBackend
 	abstract public function getTempTokenCallback(token_str, $user_idf);
 	abstract public function generateVerifier($callback_url);
 	abstract public function exchangeTempToken(OAuthConsumer $consumer, OAuthToken $temp_token, OAuthToken $new_token);
+	abstract public function getAccessTokenInfo(OAuthConsumer $consumer, $token_str, &$token_secret, &$user_data);
 }
 
