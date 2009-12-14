@@ -105,7 +105,7 @@ class OAuthServer
 	/**
 	 * For internal use, checks nonce, timestamp and token!
 	 **/
-	protected function checkSignature(OAuthServerRequest $req, OAuthConsumer $consumer, OAuthToken $token)
+	protected function checkSignature(OAuthServerRequest $req, OAuthConsumer $consumer, OAuthToken $token = NULL)
 	{
 		$req->getNonceAndTimeStamp($nonce, $timestamp);
 
@@ -153,7 +153,7 @@ class OAuthServer
 
 		$this->checkOAuthVersion($req);
 
-		$consumer = $this->getConsumer();
+		$consumer = $this->getConsumer($req);
 
 		$this->checkSignature($req, $consumer, NULL);
 
@@ -182,17 +182,72 @@ class OAuthServer
 	 * Auth Flow Server API: Implements the first part of section
 	 * 6.2. "Obtaining User Authorization" of the OAuth Core specs.
 	 **/
-	public function authorize_checkToken()
+	public function authorize_checkToken($user_idf)
 	{
+		$req = new OAuthServerRequest();
 
+		$this->checkOAuthVersion($req);
+
+		$consumer = $this->getConsumer($req);
+
+		$token_str = $req->getTokenParameter();
+		$callback_url = $req->getCallbackParameter();
+		$callback_url = OAuthUtils::validateCallbackURL($callback_url);
+		$token_secret = '';
+
+		if($this->backend->checkTempToken($consumer, $token_str, $callback_url, $user_idf, false, $token_secret) != OAuthServerBackend::RESULT_OK)
+		{
+			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
+		}
+
+		if(empty($token_secret))
+		{
+			// Hello, Twitter. We are better OAuth citizens than you are.
+			throw new OAuthException('Empty token secret in OAuthServer::authorize_checkToken.');
+		}
+
+		$token = new OAuthToken($token_str, $token_secret);
+
+		$this->checkSignature($req, $consumer, $token);
+
+		// ok, nice, the request seems to be 100% okay. Cool.
+		// The backend also stored/updated the callback_url.
+
+		// The server frontend can now render the "Hello user, plz authorize this app!" page.
+		return $consumer;
 	}
 
 	/**
 	 * Auth Flow Server API: Implements the second part of section 6.2.
 	 **/
-	public function authorize_result($token, $authorized)
+	public function authorize_result($token_str, $user_idf, $authorized)
 	{
+		if($authorized)
+		{
+			$callback_url = $this->backend->getTempTokenCallback($token_str, $user_idf);
+			$callback_url = OAuthUtils::validateCallbackURL($callback_url);
 
+			if(empty($callback_url))
+			{
+				throw new OAuthException('The backend failed to deliver a valid callback for this temporary token!');
+			}
+
+			$verifier = $this->backend->generateVerifier($callback_url);
+
+			if($this->backend->authorizeTempToken($token_str, $user_idf, $verifier) != OAuthServerBackend::RESULT_OK)
+			{
+				throw new OAuthException('Backend was unable to authorize the temporary token!');
+			}
+		}
+		else
+		{
+			if($this->backend->deleteTempToken($token_str, $user_idf) != OAuthServerBackend::RESULT_OK)
+			{
+				throw new OAuthException('Backend was unable to revoke the temporary token!');
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -200,7 +255,43 @@ class OAuthServer
 	 **/
 	public function accessToken()
 	{
+		$req = new OAuthServerRequest();
 
+		$this->checkOAuthVersion($req);
+
+		$consumer = $this->getConsumer($req);
+
+		$token_str = $req->getTokenParameter();
+		$token_secret = '';
+
+		if($this->backend->checkTempToken($consumer, $token_str, '', NULL, true, $token_secret) != OAuthServerBackend::RESULT_OK)
+		{
+			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
+		}
+
+		if(empty($token_secret))
+		{
+			throw new OAuthException('Empty token secret in OAuthServer::accessToken.');
+		}
+
+		$token = new OAuthToken($token_str, $token_secret);
+
+		$this->checkSignature($req, $consumer, $token);
+
+		$access_secret = OAuthUtil::randomString(40);
+
+		do
+		{
+			$new_token = new OAuthToken(OAuthUtil::randomString(20), $access_secret);
+			$result = $this->backend->exchangeTempToken($consumer, $token, $new_token);
+		} while($result == OAuthServerBackend::RESULT_DUPE);
+
+		if($result != OAuthServerBackend::RESULT_OK)
+		{
+			throw new OAuthException('Creating an authorized token failed.');
+		}
+
+		return $new_token;
 	}
 
 	/**
@@ -210,7 +301,26 @@ class OAuthServer
 	 **/
 	public function verifyApiCall()
 	{
+		$req = new OAuthServerRequest();
 
+		$this->checkOAuthVersion($req);
+
+		$consumer = $this->getConsumer($req);
+
+		$token_str = $req->getTokenParameter();
+		$token_secret = '';
+		$user_data = NULL;
+
+		if($this->backend->getAccessTokenInfo($consumer, $token_str, $token_secret, $user_data) != OAuthServerBackend::RESULT_OK)
+		{
+			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
+		}
+
+		$token = new OAuthToken($token_str, $token_secret);
+
+		$this->checkSignature($req, $consumer, $token);
+
+		return $user_data;
 	}
 }
 
@@ -391,6 +501,14 @@ class OAuthServerRequest extends OAuthRequest
 	public function getCallbackParameter()
 	{
 		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_callback', '');
+	}
+
+	/**
+	 * Returns the oauth_token parameter's value or an empty string.
+	 **/
+	public function getTokenParameter()
+	{
+		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_token', '');
 	}
 }
 
