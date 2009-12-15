@@ -13,6 +13,7 @@ abstract class OAuthServerBackend
 	public const RESULT_DUPE_NONCE = 6;
 	public const RESULT_BAD_TIMESTAMP = 7;
 	public const RESULT_BAD_TOKEN = 8;
+	public const RESULT_OPERATION_NOT_PETMITTED = 9;
 
 	/**
 	 * @param string consumer_key
@@ -51,12 +52,17 @@ abstract class OAuthServerBackend
 	/**
 	 * @return string
 	 **/
-	abstract public function getTempTokenCallback(token_str, $user_idf);
+	abstract public function getTempTokenCallback($token_str, $user_idf);
 
 	/**
 	 * @return string
 	 **/
 	abstract public function generateVerifier($callback_url);
+
+	/**
+	 * @return int Return RESULT_OK or RESULT_ERROR.
+	 **/
+	abstract public function getVerifierParameter($token_str, $verifier);
 
 	/**
 	 * @return int One of: RESULT_DUPE (the token string is already used), RESULT_OK
