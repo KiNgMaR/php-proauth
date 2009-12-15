@@ -79,7 +79,7 @@ class OAuthServer
 		{
 			throw new OAuthException('Consumer not found.', 500);
 		}
-		else
+		elseif(!$consumer instanceof OAuthConsumer)
 		{
 			throw new OAuthException('Backend returned an incorrect value from getConsumerByKey');
 		}
@@ -109,7 +109,7 @@ class OAuthServer
 	{
 		$req->getNonceAndTimeStamp($nonce, $timestamp);
 
-		$result = $this->backend->checkNonceAndTimeStamp($nonce, $timestamp, $consumer, $token);
+		$result = $this->backend->checkNonceAndTimeStamp($nonce, (int)$timestamp, $consumer, $token);
 
 		if($result == OAuthServerBackend::RESULT_OK)
 		{
@@ -144,27 +144,32 @@ class OAuthServer
 	}
 
 	/**
-	 * Auth Flow Server API: Implements section 6.1. "Obtaining an Unauthorized Request Token"
-	 * of the OAuth Core specs.
+	 * Auth Flow Server API: Implements section 2.1. "Temporary Credentials" of the OAuth Core specs.
 	 **/
 	public function requestToken()
 	{
 		$req = new OAuthServerRequest();
 
+		// check basic premises...
 		$this->checkOAuthVersion($req);
 
 		$consumer = $this->getConsumer($req);
 
+		// this request does not require a token.
 		$this->checkSignature($req, $consumer, NULL);
 
+		// store a callback_url, if we have one:
 		$callback_url = $req->getCallbackParameter();
 		$callback_url = OAuthUtils::validateCallbackURL($callback_url);
 
+		// generate a temp secret:
 		$temp_secret = OAuthUtil::randomString(40);
 
 		do
 		{
+			// and a temp token:
 			$new_token = new OAuthToken(OAuthUtil::randomString(20), $temp_secret);
+			// and validate it with the backend to make sure it's unique:
 			$result = $this->backend->addTempToken($consumer, $new_token, $callback_url);
 		} while($result == OAuthServerBackend::RESULT_DUPE);
 
@@ -173,6 +178,9 @@ class OAuthServer
 			throw new OAuthException('Creating a temporary token failed.');
 		}
 
+		// The specs say "oauth_callback_confirmed: MUST be present and set to true.
+		// The parameter is used to differentiate from previous versions of the protocol."
+		// But we feel free to also use "false", if no callback was given.
 		$new_token->setAdditionalParam('oauth_callback_confirmed', (empty($callback_url) ? 'false' : 'true'));
 
 		return $new_token;
@@ -180,7 +188,8 @@ class OAuthServer
 
 	/**
 	 * Auth Flow Server API: Implements the first part of section
-	 * 6.2. "Obtaining User Authorization" of the OAuth Core specs.
+	 * 2.2. "Resource Owner Authorization" of the OAuth Core specs.
+	 * @param user_idf string
 	 **/
 	public function authorize_checkToken($user_idf)
 	{
@@ -190,6 +199,7 @@ class OAuthServer
 
 		$consumer = $this->getConsumer($req);
 
+		// this request has to be signed using the temporary credentials obtained in the previous step.
 		$token_str = $req->getTokenParameter();
 		$callback_url = $req->getCallbackParameter();
 		$callback_url = OAuthUtils::validateCallbackURL($callback_url);
@@ -218,10 +228,11 @@ class OAuthServer
 	}
 
 	/**
-	 * Auth Flow Server API: Implements the second part of section 6.2.
+	 * Auth Flow Server API: Implements the second part of section 2.2.
 	 **/
 	public function authorize_result($token_str, $user_idf, $authorized)
 	{
+		// We do not need to check for an OAuthRequest, since this won't be one.
 		if($authorized)
 		{
 			$callback_url = $this->backend->getTempTokenCallback($token_str, $user_idf);
@@ -233,11 +244,31 @@ class OAuthServer
 			}
 
 			$verifier = $this->backend->generateVerifier($callback_url);
+			$redirect = false;
 
-			if($this->backend->authorizeTempToken($token_str, $user_idf, $verifier) != OAuthServerBackend::RESULT_OK)
+			if($this->backend->authorizeTempToken($token_str, $user_idf, $verifier, $redirect) != OAuthServerBackend::RESULT_OK)
 			{
 				throw new OAuthException('Backend was unable to authorize the temporary token!');
 			}
+
+			if($redirect && filter_var($callback_url, FILTER_VALIDATE_URL))
+			{
+				$oauth_params = array('oauth_token' => $token_str, 'oauth_verifier' => $verifier);
+
+				// merge the oauth_token and oauth_verifier parameters and possible
+				// parameters from a query string in $callback_url. Pretty gross.
+				$url = OAuthUtils::normalizeRequestURL($callback_url) . '?';
+
+				$params = array();
+				parse_str(parse_url($callback_url, PHP_URL_QUERY), $params);
+
+				$params = array_merge($params, $oauth_params);
+
+				header('HTTP/1.0 301 Permanently Moved'); // :TODO: send a more appropriate status code.
+				header('Location: ' . $url . http_build_query($params, '', '&'));
+			}
+
+			return true;
 		}
 		else
 		{
@@ -251,7 +282,7 @@ class OAuthServer
 	}
 
 	/**
-	 * Auth Flow Server API: Implements section 6.3. "Obtaining an Access Token".
+	 * Auth Flow Server API: Implements section 2.3. "Token Credentials".
 	 **/
 	public function accessToken()
 	{
@@ -401,13 +432,13 @@ class OAuthServerRequest extends OAuthRequest
 			$this->setRealm($realm);
 		}
 
-		// The next paragraphs implement section 5.2 from the OAuth Core specs.
+		// The next paragraphs refers to sections 3.4.1.3.1. and 3.5. of the OAuth Core specs.
 
 		// We rely on PHP to parse the $_POST and $_GET parameters for us.
 		// This *could* break in some weird cases, but I am not aware of any
 		// situation out in the wild where that would happen. PHP uses
 		// urldecode() to decode the parameters, which works in accordance to
-		// section 5.1 of the core specs and section 3.4.1.3.1. of the hammer-draft.
+		// section 3.4.1.3.1. of the Core specs.
 		// C.f. OAuthUtil::urlDecode()
 
 		$this->params_post = array();
