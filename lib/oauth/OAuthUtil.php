@@ -46,7 +46,7 @@ class OAuthException extends Exception
 	 * has been specified in the constructor or an empty string otherwise.
 	 * The returned string can be used in a WWW-Authenticate header, or as
 	 * the body part of the response. It must not be HTML encoded or otherwise
-	 * escpaed.
+	 * escaped.
 	 **/
 	public function getOAuthProblemString()
 	{

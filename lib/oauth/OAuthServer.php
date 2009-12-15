@@ -311,6 +311,11 @@ class OAuthServer
 
 		$access_secret = OAuthUtil::randomString(40);
 
+		if($this->backend->checkVerifier($token_str, $req->getVerifierParameter()) != OAuthServerBackend::RESULT_OK)
+		{
+			throw new OAuthException('The provided oauth_verifier did not match the token.', 401, 'verifier_invalid');
+		}
+
 		do
 		{
 			$new_token = new OAuthToken(OAuthUtil::randomString(20), $access_secret);
@@ -342,7 +347,12 @@ class OAuthServer
 		$token_secret = '';
 		$user_data = NULL;
 
-		if($this->backend->getAccessTokenInfo($consumer, $token_str, $token_secret, $user_data) != OAuthServerBackend::RESULT_OK)
+		$result = $this->backend->getAccessTokenInfo($consumer, $token_str, $token_secret, $user_data);
+		if($result == OAuthServerBackend::RESULT_OPERATION_NOT_PETMITTED)
+		{
+			throw new OAuthException('Operation not permitted.', 401, 'permission_denied');
+		}
+		elseif($result != OAuthServerBackend::RESULT_OK)
 		{
 			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
 		}
@@ -540,6 +550,14 @@ class OAuthServerRequest extends OAuthRequest
 	public function getTokenParameter()
 	{
 		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_token', '');
+	}
+
+	/**
+	 * Returns the oauth_verifier parameter's value or an empty string.
+	 **/
+	public function getVerifierParameter()
+	{
+		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_verifier', '');
 	}
 }
 
