@@ -37,9 +37,11 @@ abstract class OAuthServerBackend
 	abstract public function checkTempToken(OAuthConsumer $consumer, $token_str, $callback_url, $user_idf, $authed_status, &$token_secret);
 
 	/**
+	 * If authorizing the temp token succeeded, the backend can set $redirect = true to redirect
+	 * to the callback URL or display the verifier to the user using other means (with $redirect = false).
 	 * @return int Return RESULT_OK or RESULT_ERROR.
 	 **/
-	abstract public function authorizeTempToken($token_str, $user_idf, $verifier);
+	abstract public function authorizeTempToken($token_str, $user_idf, $verifier, &$redirect);
 
 	/**
 	 * @return int Return RESULT_OK or RESULT_ERROR.
