@@ -34,7 +34,7 @@ class OAuthServer
 	 **/
 	public function addSignatureMethod(OAuthSignatureMethod $method)
 	{
-		$signature_methods[strtoupper($method->getName())] = $method;
+		$this->signature_methods[strtoupper($method->getName())] = $method;
 	}
 
 	/**
@@ -96,10 +96,10 @@ class OAuthServer
 
 		if(!isset($this->signature_methods[$method]))
 		{
-			throw new OAuthException('Signature method "' . $signature_method . '" not supported.', 400, 'signature_method_rejected');
+			throw new OAuthException('Signature method "' . $method . '" not supported.', 400, 'signature_method_rejected');
 		}
 
-		return $this->signature_methods[$signature_method];
+		return $this->signature_methods[$method];
 	}
 
 	/**
@@ -160,7 +160,7 @@ class OAuthServer
 
 		// store a callback_url, if we have one:
 		$callback_url = $req->getCallbackParameter();
-		$callback_url = OAuthUtils::validateCallbackURL($callback_url);
+		$callback_url = OAuthUtil::validateCallbackURL($callback_url);
 
 		// generate a temp secret:
 		$temp_secret = OAuthUtil::randomString(40);
@@ -191,38 +191,18 @@ class OAuthServer
 	 * 2.2. "Resource Owner Authorization" of the OAuth Core specs.
 	 * @param user_idf string
 	 **/
-	public function authorize_checkToken($user_idf)
+	public function authorize_checkToken($token_str, $user_idf, $callback_url)
 	{
-		$req = new OAuthServerRequest();
+		$consumer = NULL;
 
-		$this->checkOAuthVersion($req);
+		$callback_url = OAuthUtil::validateCallbackURL($callback_url);
 
-		$consumer = $this->getConsumer($req);
-
-		// this request has to be signed using the temporary credentials obtained in the previous step.
-		$token_str = $req->getTokenParameter();
-		$callback_url = $req->getCallbackParameter();
-		$callback_url = OAuthUtils::validateCallbackURL($callback_url);
-		$token_secret = '';
-
-		if($this->backend->checkTempToken($consumer, $token_str, $callback_url, $user_idf, false, $token_secret) != OAuthServerBackend::RESULT_OK)
+		if($this->backend->checkTempToken($token_str, $user_idf, $callback_url, $consumer) != OAuthServerBackend::RESULT_OK)
 		{
 			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
 		}
 
-		if(empty($token_secret))
-		{
-			// Hello, Twitter. We are better OAuth citizens than you are.
-			throw new OAuthException('Empty token secret in OAuthServer::authorize_checkToken.');
-		}
-
-		$token = new OAuthToken($token_str, $token_secret);
-
-		$this->checkSignature($req, $consumer, $token);
-
-		// ok, nice, the request seems to be 100% okay. Cool.
-		// The backend also stored/updated the callback_url.
-
+		// ok, nice, the request seems to be okay. Cool.
 		// The server frontend can now render the "Hello user, plz authorize this app!" page.
 		return $consumer;
 	}
@@ -236,7 +216,7 @@ class OAuthServer
 		if($authorized)
 		{
 			$callback_url = $this->backend->getTempTokenCallback($token_str, $user_idf);
-			$callback_url = OAuthUtils::validateCallbackURL($callback_url);
+			$callback_url = OAuthUtil::validateCallbackURL($callback_url);
 
 			if(empty($callback_url))
 			{
@@ -257,7 +237,7 @@ class OAuthServer
 
 				// merge the oauth_token and oauth_verifier parameters and possible
 				// parameters from a query string in $callback_url. Pretty gross.
-				$url = OAuthUtils::normalizeRequestURL($callback_url) . '?';
+				$url = OAuthUtil::normalizeRequestURL($callback_url) . '?';
 
 				$params = array();
 				parse_str(parse_url($callback_url, PHP_URL_QUERY), $params);
@@ -295,7 +275,9 @@ class OAuthServer
 		$token_str = $req->getTokenParameter();
 		$token_secret = '';
 
-		if($this->backend->checkTempToken($consumer, $token_str, '', NULL, true, $token_secret) != OAuthServerBackend::RESULT_OK)
+		// this request has to be signed using the temporary credentials.
+
+		if($this->backend->checkAuthedTempToken($consumer, $token_str, $token_secret) != OAuthServerBackend::RESULT_OK)
 		{
 			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
 		}
@@ -348,7 +330,7 @@ class OAuthServer
 		$user_data = NULL;
 
 		$result = $this->backend->getAccessTokenInfo($consumer, $token_str, $token_secret, $user_data);
-		if($result == OAuthServerBackend::RESULT_OPERATION_NOT_PETMITTED)
+		if($result == OAuthServerBackend::RESULT_OPERATION_NOT_PERMITTED)
 		{
 			throw new OAuthException('Operation not permitted.', 401, 'permission_denied');
 		}
@@ -396,11 +378,20 @@ class OAuthServerRequest extends OAuthRequest
 
 		if(preg_match('~^(.+):(\d+)$~', $host, $match))
 		{
-			if((int)$match[1] != $port)
+			if(false)
 			{
-				throw new OAuthException('Bad port in the HTTP Host header.', 400);
+				// this check breaks with NAT and mod_proxy and stuff. :TODO: figure it out.
+				if((int)$match[2] != $port)
+				{
+					throw new OAuthException('Bad port in the HTTP Host header.', 400);
+				}
 			}
-			$host = $match[0];
+			else
+			{
+				$port = (int)$match[2];
+			}
+
+			$host = $match[1];
 		}
 
 		// courtesy: http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address

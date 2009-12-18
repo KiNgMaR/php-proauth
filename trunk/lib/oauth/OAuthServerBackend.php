@@ -2,18 +2,18 @@
 
 abstract class OAuthServerBackend
 {
-	public const RESULT_ERROR = -1;
-	public const RESULT_OK = 1;
-	public const RESULT_DUPE = 2;
+	const RESULT_ERROR = -1;
+	const RESULT_OK = 1;
+	const RESULT_DUPE = 2;
 
-	public const RESULT_RATE_LIMITED = 3;
-	public const RESULT_NOT_FOUND = 4;
-	public const RESULT_DISABLED = 5;
+	const RESULT_RATE_LIMITED = 3;
+	const RESULT_NOT_FOUND = 4;
+	const RESULT_DISABLED = 5;
 
-	public const RESULT_DUPE_NONCE = 6;
-	public const RESULT_BAD_TIMESTAMP = 7;
-	public const RESULT_BAD_TOKEN = 8;
-	public const RESULT_OPERATION_NOT_PETMITTED = 9;
+	const RESULT_DUPE_NONCE = 6;
+	const RESULT_BAD_TIMESTAMP = 7;
+	const RESULT_BAD_TOKEN = 8;
+	const RESULT_OPERATION_NOT_PERMITTED = 9;
 
 	/**
 	 * @param string consumer_key
@@ -28,14 +28,14 @@ abstract class OAuthServerBackend
 
 	/**
 	 * Creates a new temporary token/key pair, associated with $consumer and optionally $callback_url.
-	 * @return int One of: RESULT_DUPE (the token string is already used), RESULT_OK
+	 * @return int One of: RESULT_DUPE (the token string is already used), RESULT_OK, RESULT_ERROR
 	 **/
 	abstract public function addTempToken(OAuthConsumer $consumer, OAuthToken $new_token, $callback_url);
 
 	/**
 	 * @return int Return RESULT_OK or RESULT_ERROR.
 	 **/
-	abstract public function checkTempToken(OAuthConsumer $consumer, $token_str, $callback_url, $user_idf, $authed_status, &$token_secret);
+	abstract public function checkTempToken($token_str, $user_idf, $callback_url, &$consumer);
 
 	/**
 	 * If authorizing the temp token succeeded, the backend can set $redirect = true to redirect
@@ -43,6 +43,11 @@ abstract class OAuthServerBackend
 	 * @return int Return RESULT_OK or RESULT_ERROR.
 	 **/
 	abstract public function authorizeTempToken($token_str, $user_idf, $verifier, &$redirect);
+
+	/**
+	 * @return int Return RESULT_OK or RESULT_ERROR.
+	 **/
+	abstract public function checkAuthedTempToken(OAuthConsumer $consumer, $token_str, &$token_secret);
 
 	/**
 	 * @return int Return RESULT_OK or RESULT_ERROR.
@@ -60,11 +65,6 @@ abstract class OAuthServerBackend
 	abstract public function generateVerifier($callback_url);
 
 	/**
-	 * @return int Return RESULT_OK or RESULT_ERROR.
-	 **/
-	abstract public function getVerifierParameter($token_str, $verifier);
-
-	/**
 	 * @return int One of: RESULT_DUPE (the token string is already used), RESULT_OK
 	 **/
 	abstract public function exchangeTempToken(OAuthConsumer $consumer, OAuthToken $temp_token, OAuthToken $new_token);
@@ -73,5 +73,7 @@ abstract class OAuthServerBackend
 	 * @return int Return RESULT_OK or RESULT_ERROR.
 	 **/
 	abstract public function getAccessTokenInfo(OAuthConsumer $consumer, $token_str, &$token_secret, &$user_data);
+
+	abstract public function checkVerifier($token_str, $verifier);
 }
 
