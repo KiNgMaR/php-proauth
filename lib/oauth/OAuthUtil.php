@@ -3,7 +3,7 @@
 
 class OAuthException extends Exception
 {
-	protected $http_http_status_code;
+	protected $http_status_code;
 	protected $oauth_problem, $oauth_problem_extra_info;
 
 	/**
@@ -15,7 +15,7 @@ class OAuthException extends Exception
 	{
 		parent::__construct($error_msg);
 
-		$this->http_status_code = $http_status_code;
+		$this->http_status_code = (int)$http_status_code;
 		$this->oauth_problem = $oauth_problem;
 		$this->oauth_problem_descr = $oauth_problem_extra_info;
 	}
@@ -45,14 +45,14 @@ class OAuthException extends Exception
 	 * http://oauth.pbworks.com/ProblemReporting if an oauth_problem
 	 * has been specified in the constructor or an empty string otherwise.
 	 * The returned string can be used in a WWW-Authenticate header, or as
-	 * the body part of the response. It must not be HTML encoded or otherwise
-	 * escaped.
+	 * the body part of the response.
+	 * @return array
 	 **/
-	public function getOAuthProblemString()
+	public function getOAuthProblemData()
 	{
 		if(empty($this->oauth_problem))
 		{
-			return '';
+			return array();
 		}
 
 		$params = array('oauth_problem' => $this->oauth_problem,
@@ -63,7 +63,15 @@ class OAuthException extends Exception
 			$params = array_merge($params, $this->oauth_problem_extra_info);
 		}
 
-		return OAuthUtil::joinParametersMap($params);
+		return $params;
+	}
+
+	/**
+	 * Returns this error's HTTP status code, e.g. 401 or 500.
+	 **/
+	public function getHttpStatusCode()
+	{
+		return $this->http_status_code;
 	}
 }
 
@@ -189,7 +197,7 @@ class OAuthUtil
 	 **/
 	static public function isKnownOAuthParameter($name)
 	{
-		$names = array('oauth_consumer_key', 'oauth_token', 'oauth_signature_method', 'oauth_signature',
+		$names = array('oauth_consumer_key', 'oauth_token', 'oauth_signature_method', 'oauth_signature', 'oauth_verifier',
 			'oauth_timestamp', 'oauth_nonce', 'oauth_version', 'oauth_callback', 'oauth_error_in_response_body');
 
 		return in_array($name, $names, true);
@@ -507,7 +515,7 @@ class OAuthToken
 	public function __toString()
 	{
 		$params = array('oauth_token' => $this->token,
-			'oauth_secret' => $this->secret);
+			'oauth_token_secret' => $this->secret);
 
 		$params = array_merge($this->additional_params, $params);
 
