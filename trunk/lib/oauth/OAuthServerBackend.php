@@ -70,10 +70,13 @@ abstract class OAuthServerBackend
 	abstract public function exchangeTempToken(OAuthConsumer $consumer, OAuthToken $temp_token, OAuthToken $new_token);
 
 	/**
-	 * @return int Return RESULT_OK or RESULT_ERROR.
+	 * @return int Return RESULT_OK, RESULT_RATE_LIMITED or RESULT_ERROR.
 	 **/
 	abstract public function getAccessTokenInfo(OAuthConsumer $consumer, $token_str, &$token_secret, &$user_data);
 
+	/**
+	 * @return int Return RESULT_OK or RESULT_ERROR.
+	 **/
 	abstract public function checkVerifier($token_str, $verifier);
 }
 

@@ -330,7 +330,11 @@ class OAuthServer
 		$user_data = NULL;
 
 		$result = $this->backend->getAccessTokenInfo($consumer, $token_str, $token_secret, $user_data);
-		if($result == OAuthServerBackend::RESULT_OPERATION_NOT_PERMITTED)
+		if($consumer === OAuthServerBackend::RESULT_RATE_LIMITED)
+		{
+			throw new OAuthException('Too many requests have been made. Throttling.', 401, 'user_refused');
+		}
+		elseif($result == OAuthServerBackend::RESULT_OPERATION_NOT_PERMITTED)
 		{
 			throw new OAuthException('Operation not permitted.', 401, 'permission_denied');
 		}
