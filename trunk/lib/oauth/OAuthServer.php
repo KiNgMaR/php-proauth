@@ -315,9 +315,11 @@ class OAuthServer
 	/**
 	 * Use this method to verify an API call and its parameters.
 	 * If the verification succeeds, you can use the parameters from $_GET and $_POST.
+	 * @param bool requires_user Defines whether the call needs a user or if a valid consumer and signature are enough. \
+	 *  If this is false, but the request still has a non-empty oauth_token, the user data will be checked and returned as usual.
 	 * @return mixed Returns the user data that the backend associated with the access_token session.
 	 **/
-	public function verifyApiCall()
+	public function verifyApiCall($requires_user = true)
 	{
 		$req = new OAuthServerRequest();
 
@@ -325,25 +327,34 @@ class OAuthServer
 
 		$consumer = $this->getConsumer($req);
 
+		$token = NULL;
+		$user_data = true;
 		$token_str = $req->getTokenParameter();
-		$token_secret = '';
-		$user_data = NULL;
 
-		$result = $this->backend->getAccessTokenInfo($consumer, $token_str, $token_secret, $user_data);
-		if($consumer === OAuthServerBackend::RESULT_RATE_LIMITED)
+		if($requires_user || !empty($token_str))
 		{
-			throw new OAuthException('Too many requests have been made. Throttling.', 401, 'user_refused');
-		}
-		elseif($result == OAuthServerBackend::RESULT_OPERATION_NOT_PERMITTED)
-		{
-			throw new OAuthException('Operation not permitted.', 401, 'permission_denied');
-		}
-		elseif($result != OAuthServerBackend::RESULT_OK)
-		{
-			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
-		}
+			$token_secret = '';
+			$user_data = NULL;
 
-		$token = new OAuthToken($token_str, $token_secret);
+			$result = $this->backend->getAccessTokenInfo($consumer, $token_str, $token_secret, $user_data);
+			if($consumer === OAuthServerBackend::RESULT_RATE_LIMITED)
+			{
+				throw new OAuthException('Too many requests have been made. Throttling.', 401, 'user_refused');
+			}
+			elseif($result == OAuthServerBackend::RESULT_OPERATION_NOT_PERMITTED)
+			{
+				throw new OAuthException('Operation not permitted.', 401, 'permission_denied');
+			}
+			elseif($result != OAuthServerBackend::RESULT_OK)
+			{
+				throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
+			}
+
+			$token = new OAuthToken($token_str, $token_secret);
+		}
+		// If no user is required (and the token is empty), we only check the signature
+		// with the consumer credentials, oauth version and signature.
+		// If it's nice, we return true, and throw otherwise.
 
 		$this->checkSignature($req, $consumer, $token);
 
