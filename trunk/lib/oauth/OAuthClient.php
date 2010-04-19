@@ -10,7 +10,7 @@ require_once _OAUTH_LIB_DIR . 'OAuthRequest.php';
 require_once _OAUTH_LIB_DIR . 'OAuthSignature.php';
 
 
-class OAuthClientBase
+abstract class OAuthClientBase
 {
 	protected $consumer;
 	protected $token;
@@ -34,6 +34,11 @@ class OAuthClientBase
 		$req->setGetParameters($get_params);
 		$req->setPostParameters($post_params);
 
+		if(is_object($this->token))
+		{
+			$req->setToken($this->token);
+		}
+
 		return $req;
 	}
 
@@ -46,6 +51,11 @@ class OAuthClientBase
 
 		$req->setPostParameters($params);
 
+		if(is_object($this->token))
+		{
+			$req->setToken($this->token);
+		}
+
 		return $req;
 	}
 
@@ -56,7 +66,12 @@ class OAuthClientBase
 	{
 		$req = new OAuthClientRequest($this, 'GET', $url);
 
-		$req->setPostParameters($params);
+		$req->setGetParameters($params);
+
+		if(is_object($this->token))
+		{
+			$req->setToken($this->token);
+		}
 
 		return $req;
 	}
@@ -171,6 +186,11 @@ class OAuthClientBase
 
 		return new OAuthToken($token_key, $token_secret);
 	}
+
+	/**
+	 * @return OAuthClientResponse
+	 **/
+	abstract public function executeRequest(OAuthRequest $req);
 }
 
 
@@ -331,6 +351,7 @@ class OAuthCurlClient extends OAuthClientBase
 	 * Executes the given request using libcurl.
 	 * Returns an OAuthClientResponse instance or
 	 * throws an OAuchException on errors.
+	 * @return OAuthClientResponse
 	 **/
 	public function executeRequest(OAuthRequest $req)
 	{
@@ -343,7 +364,8 @@ class OAuthCurlClient extends OAuthClientBase
 
 		// Add GET parameters to the URL:
 		$url = $req->getRequestUrl(true);
-		$url .= '?' . OAuthUtil::joinParametersMap($req->getGetParameters());
+		$query_str = OAuthUtil::joinParametersMap($req->getGetParameters());
+		if(!empty($query_str)) $url .= '?' . $query_str;
 
 		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
 
@@ -467,7 +489,7 @@ class OAuthClientResponse
 				unset($problem_params['oauth_problem']);
 
 				// Form a human-readable problem description:
-				$advice .= ': ' . $problem;
+				$advice = $problem;
 
 				if(!empty($problem_params['oauth_problem_advice']))
 				{
@@ -479,6 +501,11 @@ class OAuthClientResponse
 				// information about the error.
 				$problem_extra_info = $problem_params;
 				unset($problem_params);
+
+				if(!empty($advice))
+				{
+					$description .= ' - ' . $advice;
+				}
 
 				// Bubble up this error.
 				throw new OAuthException($description, $this->status_code, $problem, $problem_extra_info);

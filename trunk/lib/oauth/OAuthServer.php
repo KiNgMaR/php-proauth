@@ -231,21 +231,28 @@ class OAuthServer
 				throw new OAuthException('Backend was unable to authorize the temporary token!');
 			}
 
-			if($redirect && filter_var($callback_url, FILTER_VALIDATE_URL))
+			if($redirect)
 			{
-				$oauth_params = array('oauth_token' => $token_str, 'oauth_verifier' => $verifier);
+				if(filter_var($callback_url, FILTER_VALIDATE_URL))
+				{
+					$oauth_params = array('oauth_token' => $token_str, 'oauth_verifier' => $verifier);
 
-				// merge the oauth_token and oauth_verifier parameters and possible
-				// parameters from a query string in $callback_url. Pretty gross.
-				$url = OAuthUtil::normalizeRequestURL($callback_url) . '?';
+					// merge the oauth_token and oauth_verifier parameters and possible
+					// parameters from a query string in $callback_url. Pretty gross.
+					$url = OAuthUtil::normalizeRequestURL($callback_url) . '?';
 
-				$params = array();
-				parse_str(parse_url($callback_url, PHP_URL_QUERY), $params);
+					$params = array();
+					parse_str(parse_url($callback_url, PHP_URL_QUERY), $params);
 
-				$params = array_merge($params, $oauth_params);
+					$params = array_merge($params, $oauth_params);
 
-				header('HTTP/1.0 301 Permanently Moved'); // :TODO: send a more appropriate status code.
-				header('Location: ' . $url . http_build_query($params, '', '&'));
+					header('HTTP/1.0 301 Permanently Moved'); // :TODO: send a more appropriate status code.
+					header('Location: ' . $url . http_build_query($params, '', '&'));
+				}
+				else
+				{
+					throw new OAuthException('The client failed to provide a valid oauth_callback!');
+				}
 			}
 
 			return true;
