@@ -220,6 +220,12 @@ class OAuthUtil
 		}
 		else
 		{
+			if(isset($_SERVER['CONTENT_TYPE']) && !isset($_SERVER['HTTP_CONTENT_TYPE']))
+			{
+				// oh hai.
+				$_SERVER['HTTP_CONTENT_TYPE'] = $_SERVER['CONTENT_TYPE'];
+			}
+
 			foreach($_SERVER as $key => $value)
 			{
 				if(strpos($key, 'HTTP_') === 0)
