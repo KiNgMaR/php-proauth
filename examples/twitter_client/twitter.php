@@ -86,8 +86,7 @@ elseif(isset($_GET['do_it']) && !$has_access_token)
 			tampered with by 3rd parties, so do NOT store it in a cookie like this! */
 		$_SESSION['temp_token'] = serialize($tmp_token);
 
-		$clnt->redirectToAuth($tmp_token,
-			'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME']);
+		$clnt->redirectToAuth($tmp_token);
 		/* you will probably need to have your twitter app configured to use/allow this callback_url
 			at twitter.com/oauth as well! */
 	}
