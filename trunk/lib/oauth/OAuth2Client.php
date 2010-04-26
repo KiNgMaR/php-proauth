@@ -6,6 +6,10 @@ if(!defined('_OAUTH2_LIB_DIR'))
 }
 
 require_once _OAUTH2_LIB_DIR . 'OAuth2Util.php';
+require_once _OAUTH2_LIB_DIR . 'OAuthXShared.php';
+
+
+/* some constants for OAuth2AccessTokenObtainer's constructor */
 
 define('OAUTH2_FLOW_USER_AGENT', 1);
 define('OAUTH2_FLOW_WEB_SERVER', 2);
@@ -104,6 +108,12 @@ abstract class OAuth2ClientBase
 
 class OAuth2CurlClient extends OAuth2ClientBase
 {
+	public function __construct(OAuth2AccessToken $access_token = NULL)
+	{
+		parent::__construct($access_token);
+
+		OAuthShared::setUpCurl($this->curl_handle);
+	}
 }
 
 
