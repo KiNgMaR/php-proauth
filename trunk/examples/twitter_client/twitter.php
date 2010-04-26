@@ -1,4 +1,7 @@
 <?php
+/*
+ * This example code is hereby released into Public Domain.
+ */
 
 $_config = array(
 	/* get your own consumer key + secret at http://twitter.com/oauth */
