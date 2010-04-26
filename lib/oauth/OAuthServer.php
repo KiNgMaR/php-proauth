@@ -9,6 +9,7 @@ require_once _OAUTH_LIB_DIR . 'OAuthUtil.php';
 require_once _OAUTH_LIB_DIR . 'OAuthRequest.php';
 require_once _OAUTH_LIB_DIR . 'OAuthSignature.php';
 require_once _OAUTH_LIB_DIR . 'OAuthServerBackend.php';
+require_once _OAUTH_LIB_DIR . 'OAuthXShared.php';
 
 
 class OAuthServer

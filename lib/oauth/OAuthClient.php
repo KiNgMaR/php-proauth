@@ -8,6 +8,7 @@ if(!defined('_OAUTH_LIB_DIR'))
 require_once _OAUTH_LIB_DIR . 'OAuthUtil.php';
 require_once _OAUTH_LIB_DIR . 'OAuthRequest.php';
 require_once _OAUTH_LIB_DIR . 'OAuthSignature.php';
+require_once _OAUTH_LIB_DIR . 'OAuthXShared.php';
 
 
 abstract class OAuthClientBase
@@ -323,28 +324,7 @@ class OAuthCurlClient extends OAuthClientBase
 	{
 		parent::__construct($consumer, $signature_method, $token);
 
-		$this->curl_handle = curl_init();
-		// set all the necessary curl options...
-		curl_setopt($this->curl_handle, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($this->curl_handle, CURLOPT_HEADER, true);
-		curl_setopt($this->curl_handle, CURLOPT_FAILONERROR, false);
-
-		curl_setopt($this->curl_handle, CURLOPT_CONNECTTIMEOUT, 5);
-		curl_setopt($this->curl_handle, CURLOPT_TIMEOUT, 30);
-
-		curl_setopt($this->curl_handle, CURLOPT_USERAGENT, 'php-proauth/1.0 (http://code.google.com/p/php-proauth/) using libcurl');
-
-		// ignore this stupid and soon-to-be-deprecated warning:
-		// CURLOPT_FOLLOWLOCATION cannot be activated when in safe_mode or an open_basedir is set.
-		@curl_setopt($this->curl_handle, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($this->curl_handle, CURLOPT_MAXREDIRS, 10);
-
-		// to avoid possibly unwanted SSL problems. :TODO: make this configurable.
-		curl_setopt($this->curl_handle, CURLOPT_SSL_VERIFYPEER, false);
-		curl_setopt($this->curl_handle, CURLOPT_SSL_VERIFYHOST, false);
-
-		// enable compression where supported:
-		curl_setopt($this->curl_handle, CURLOPT_ENCODING, '');
+		OAuthShared::setUpCurl($this->curl_handle);
 	}
 
 	/**
