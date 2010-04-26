@@ -1,4 +1,7 @@
 <?php
+/*
+ * This example code is hereby released into Public Domain.
+ */
 
 $_config = array(
 	/* get your own app key + secret at http://www.facebook.com/developers */
