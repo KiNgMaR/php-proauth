@@ -11,7 +11,6 @@ if(!defined('_OAUTH2_LIB_DIR'))
 }
 
 require_once _OAUTH2_LIB_DIR . 'OAuth2Util.php';
-require_once _OAUTH2_LIB_DIR . 'OAuthXShared.php';
 
 
 /* some constants for OAuth2AccessTokenObtainer's constructor */
