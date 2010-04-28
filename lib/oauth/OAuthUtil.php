@@ -112,12 +112,6 @@ class OAuthUtil
 		}
 		else
 		{
-			if(isset($_SERVER['CONTENT_TYPE']) && !isset($_SERVER['HTTP_CONTENT_TYPE']))
-			{
-				// oh hai.
-				$_SERVER['HTTP_CONTENT_TYPE'] = $_SERVER['CONTENT_TYPE'];
-			}
-
 			foreach($_SERVER as $key => $value)
 			{
 				if(strpos($key, 'HTTP_') === 0)
@@ -128,6 +122,20 @@ class OAuthUtil
 					$header_name = strtr($header_name, '_', '-');
 
 					$headers[$header_name] = $value;
+				}
+			}
+
+			if(!isset($headers['content-type']))
+			{
+				if(isset($_SERVER['CONTENT_TYPE']))
+				{
+					// re: http://code.google.com/p/oauth/issues/detail?id=142
+					$headers['content-type'] = $_SERVER['CONTENT_TYPE'];
+				}
+				elseif(isset($_ENV['CONTENT_TYPE']))
+				{
+					// re: http://code.google.com/p/oauth/issues/detail?id=118
+					$_SERVER['content-type'] = $_ENV['CONTENT_TYPE'];
 				}
 			}
 		}
