@@ -9,11 +9,16 @@ $_config = array(
 	'secret' => ''
 );
 
+
 /* include OAuth 2.0 client library */
 require_once dirname(__FILE__) . '/../../lib/oauth/OAuth2Client.php';
 
 
-/* utility methods for obtaining an access token */
+/* utility methods for obtaining an access token. */
+
+
+/* this wrapper returns an OAuth2CurlClient client instance that is not (yet)
+	initialized with an access token (=anonymous). We use it while we fetch the token. */
 function getAnonClient()
 {
 	global $_config;
@@ -26,31 +31,31 @@ function getAnonClient()
 	return $clnt;
 }
 
-function getObtainer($clnt = NULL)
-{
-	if(is_null($clnt))
-	{
-		$clnt = getAnonClient();
-	}
 
-	$obt = new OAuth2AccessTokenObtainer('web_server', $clnt);
-	$obt->setRedirectUrl('http://' . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'] . '?step2=1');
+/* your webserver needs to make sure that HTTP_HOST is safe to use. */
+$redirect_url = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['SCRIPT_NAME'] . '?step2=1';
 
-	return $obt;
-}
+
+/* code for the actual example "page" */
 
 
 if(isset($_GET['login']))
 {
 	/* step 1, user clicked "login with facebook link, redirect them to FB */
-	$obt = getObtainer();
+	$clnt = getAnonClient();
+
+	$obt = $clnt->getAccessTokenObtainer('web_server');
+	$obt->setRedirectUrl($redirect_url);
+
 	$obt->webFlowRedirect();
 }
 elseif(isset($_GET['step2']))
 {
 	/* step 2, user authed our app at FB, so let's get the access token */
 	$clnt = getAnonClient();
-	$obt = getObtainer($clnt);
+
+	$obt = $clnt->getAccessTokenObtainer('web_server');
+	$obt->setRedirectUrl($redirect_url); // yes, this steps needs the redirect_url as well!
 
 	if($obt->webServerDidUserAuthorize())
 	{
