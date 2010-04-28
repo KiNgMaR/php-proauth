@@ -48,6 +48,11 @@ abstract class OAuth2ClientBase
 	 * An instance of a class derived from OAuth2SignatureMethod
 	 **/
 	protected $access_secret_type = NULL;
+	/**
+	 * Whether making requests using a 'bearer token' (=without secret) and therefore
+	 * without cryptographic signature over a plain text channel is allowed.
+	 **/
+	protected $allow_unprotected = false;
 
 
 	public function __construct(OAuth2AccessToken $access_token = NULL)
@@ -94,6 +99,9 @@ abstract class OAuth2ClientBase
 
 	public function getClientId() { return $this->client_id; }
 	public function getClientSecret() { return $this->client_secret; }
+
+	public function getAllowUnprotected() { return $this->allow_unprotected; }
+	public function setAllowUnprotected($b) { $this->allow_unprotected = (bool)$b; }
 
 	/**
 	 * All auth flows besides 'device' can optionally issue a token+secret instead
@@ -452,7 +460,7 @@ class OAuth2ClientRequest extends OAuth2Request
 	 * Usually invoked by and through OAuth2ClientBase.
 	 **/
 	public function __construct($http_method, $url, OAuth2AccessToken $token,
-		OAuth2SignatureMethod $sig_method = NULL)
+		OAuth2SignatureMethod $sig_method = NULL, $allow_unprotected = false)
 	{
 		parent::__construct();
 
@@ -474,7 +482,12 @@ class OAuth2ClientRequest extends OAuth2Request
 			throw new OAuthException('Invalid URL "' . $url . '" to OAuth2ClientRequest.');
 		}
 
-		// :TODO: add a check like if(!ssl && no_secret && dont_override_this) here
+		if(!$allow_unprotected &&
+			parse_url($url, PHP_URL_SCHEME) != 'https' && is_null($sig_method))
+		{
+			throw new OAuth2Exception('Trying to make a request without a token secret over an unencrypted channel. ' .
+				'Use OAuth2Client->setAllowUnprotected(true) to allow this.');
+		}
 
 		$this->http_method = strtoupper($http_method);
 		$this->request_url = $url;
