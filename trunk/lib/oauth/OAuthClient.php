@@ -538,16 +538,16 @@ class OAuthClientResponse
 	 **/
 	public function forceWwwEncodedBodyInterpretation()
 	{
-		try
+		$tmp = OAuthShared::splitParametersMap($this->body);
+
+		if(is_array($tmp))
 		{
-			$this->body_params = OAuthShared::splitParametersMap($this->body);
-		}
-		catch(OAuthException $ex)
-		{
-			return false;
+			$this->body_params = $tmp;
+
+			return (count($tmp) > 0);
 		}
 
-		return (count($this->body_params) > 0);
+		return false;
 	}
 }
 

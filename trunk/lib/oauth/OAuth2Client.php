@@ -38,7 +38,7 @@ abstract class OAuth2ClientBase
 	 * Client ID and optional secret
 	 **/
 	protected $client_id, $client_secret;
-	/** 
+	/**
 	 * If an access token has been obtained (previously or just now),
 	 * it will be stored here.
 	 * @type OAuth2AccessToken
@@ -120,6 +120,15 @@ abstract class OAuth2ClientBase
 		return $this->access_token;
 	}
 
+	/**
+	 * @see OAuth2AccessTokenObtainer
+	 * @return OAuth2AccessTokenObtainer
+	 **/
+	public function getAccessTokenObtainer($flow_type)
+	{
+		return new OAuth2AccessTokenObtainer($flow_type, $this);
+	}
+
 	abstract public function doSimplePostRequest($url, array $post_params);
 }
 
@@ -154,6 +163,17 @@ class OAuth2CurlClient extends OAuth2ClientBase
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Simple destructor, some cleanup, etc. Boring.
+	 **/
+	public function __destruct()
+	{
+		if($this->curl_handle)
+		{
+			curl_close($this->curl_handle);
+		}
 	}
 }
 
@@ -382,15 +402,8 @@ class OAuth2AccessTokenObtainer
 			throw new OAuth2Exception('While fetching the access token, the server did not return an OK status code.');
 		}
 
-		/*foreach($headers as $name => $value)
-		{
-			if(strcasecmp($name, 'Content-Type') == 0 && $name != 'application/x-www-form-urlencoded')
-			{
-				throw new OAuth2Exception('While fetching the access token, the server did not reply with a correctly formatted answer.');
-			}
-		}
-		Yay for servers not adhering to the specs when it comes to simple things like the correct content-type.
-		*/
+		/* Yay for servers not adhering to the specs when it comes to simple things like the correct Content-Type...
+			... so we don't check the Content-Type header for now. We will later, so FIX YOUR SHIT! */
 
 		// get response params:
 		$params = OAuthShared::splitParametersMap($body);
@@ -415,7 +428,7 @@ class OAuth2AccessTokenObtainer
 		$this->client->_setAccessToken($token);
 
 		return true;
-	}	
+	}
 }
 
 

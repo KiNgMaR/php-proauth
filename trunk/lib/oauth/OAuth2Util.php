@@ -47,6 +47,7 @@ class OAuth2AccessToken
 	public function getSecret() { return $this->token_secret; }
 	public function hasRefreshToken() { return !empty($this->refresh_token); }
 	public function getRefreshToken() { return $this->refresh_token; }
+	public function willExpire() { return ($this->expires_at > 0); }
 	public function hasExpired() { return ($this->expires_at > 0 && $this->expires_at <= time()); }
 	public function getExpiryTime() { return $this->expires_at; }
 
