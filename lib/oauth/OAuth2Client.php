@@ -11,6 +11,7 @@ if(!defined('_OAUTH2_LIB_DIR'))
 }
 
 require_once _OAUTH2_LIB_DIR . 'OAuth2Util.php';
+require_once _OAUTH2_LIB_DIR . 'OAuth2Request.php';
 require_once _OAUTH2_LIB_DIR . 'OAuth2Signature.php';
 
 
@@ -414,10 +415,126 @@ class OAuth2AccessTokenObtainer
 		$this->client->_setAccessToken($token);
 
 		return true;
-	}
-
-	
+	}	
 }
 
 
+class OAuth2ClientRequest extends OAuth2Request
+{
+	protected $timestamp = 0;
+	protected $nonce = '';
+
+	/**
+	 * @type OAuth2AccessToken instance
+	 **/
+	protected $access_token = NULL;
+	/**
+	 * @type OAuth2SignatureMethod instance
+	 **/
+	protected $secret_sig_method = NULL;
+
+	protected $signed = false;
+
+	/**
+	 * Usually invoked by and through OAuth2ClientBase.
+	 **/
+	public function __construct($http_method, $url, OAuth2AccessToken $token,
+		OAuth2SignatureMethod $sig_method = NULL)
+	{
+		parent::__construct();
+
+		if(!is_null($sig_method) && !$token->hasSecret())
+		{
+			throw new OAuth2Exception('Can\'t sign a token without a secret. Did you really intend to specify a signature method?');
+		}
+
+		$this->access_token = $token;
+		$this->secret_sig_method = $sig_method;
+
+		if(strcasecmp($http_method, 'POST') && strcasecmp($http_method, 'GET'))
+		{
+			throw new OAuth2Exception('Unsupported HTTP method "' . $http_method . '" in OAuth2ClientRequest.');
+		}
+
+		if(!filter_var($url, FILTER_VALIDATE_URL))
+		{
+			throw new OAuthException('Invalid URL "' . $url . '" to OAuth2ClientRequest.');
+		}
+
+		// :TODO: add a check like if(!ssl && no_secret && dont_override_this) here
+
+		$this->http_method = strtoupper($http_method);
+		$this->request_url = $url;
+	}
+
+	/**
+	 * Replaces the existing GET query parameters.
+	 **/
+	public function setGetParameters(array $new_params)
+	{
+		$this->params_get = $new_params;
+		$this->signed = false;
+	}
+
+	/**
+	 * Replaces the existing POST parameters.
+	 **/
+	public function setPostParameters(array $new_params)
+	{
+		$this->params_post = $new_params;
+		$this->signed = false;
+	}
+
+	/**
+	 * @return bool Whether the current parameters of this request have been signed.
+	 **/
+	public function isSigned()
+	{
+		return $this->signed;
+	}
+
+	/**
+	 * Signs the request. You are asked to immediately send it to the
+	 * Service Provider after signing it.
+	 **/
+	public function sign()
+	{
+		$this->params_header = array('token' => $this->access_token->getToken());
+
+		if(!is_null($this->secret_sig_method))
+		{
+			// :TODO: Only add timestamp+nonce if the signature method requires it.
+			$this->params_header['nonce'] = OAuthShared::generateNonce();
+			$this->params_header['timestamp'] = time();
+			$this->params_header['algorithm'] = $this->secret_sig_method->getName();
+
+			$this->params_header['signature'] = '';//:TODO:
+		}
+
+		$this->signed = true;
+	}
+
+	/**
+	 * Returns the contents of the HTTP Authorization header that need(s) to be
+	 * used for making the request to the protected resource.
+	 **/
+	public function getAuthorizationHeader()
+	{
+		$result = 'Token ';
+
+		foreach($this->params_header as $key => $value)
+		{
+			if(strpos($value, '"') !== false)
+			{
+				throw new OAuth2Excpeption('There\'s a quote char in one of the parameters for the Authorization header. This isn\'t supposed to happen.');
+			}
+
+			// :TODO: find out whether this really is not supposed to be urlEncoded.
+			$result .= $key . '="' . $value . '", ';
+		}
+
+		return rtrim($result, ', ');
+	}
+
+}
 

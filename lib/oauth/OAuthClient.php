@@ -82,30 +82,6 @@ abstract class OAuthClientBase
 	}
 
 	/**
-	 * Generates and returns a most probably unique nonce with a length of about 27 characters.
-	 **/
-	public function generateNonce()
-	{
-		$nonce = uniqid(mt_rand()) . '/' . microtime(true);
-		$nonce = base64_encode(sha1($nonce, true));
-		$nonce = rtrim($nonce, '=');
-		return $nonce;
-	}
-
-	/**
-	 * Returns the timestamp for the next request.
-	 **/
-	public function generateTimestamp()
-	{
-		// following this discussion, we *do* use time(), but
-		// rely on Service Providers to follow the
-		// "Each nonce is unique per timestamp value" rule.
-		// http://groups.google.com/group/oauth/tree/browse_frm/month/2007-10/fba9c641984a63c1
-		return time();
-		// the protocol has room for improvement here.
-	}
-
-	/**
 	 * @return OAuthToken
 	 **/
 	public function getToken() { return $this->token; }
@@ -212,13 +188,18 @@ class OAuthClientRequest extends OAuthRequest
 	{
 		parent::__construct();
 
+		$this->client = $client;
+
 		if(strcasecmp($http_method, 'POST') && strcasecmp($http_method, 'GET'))
 		{
 			throw new OAuthException('Unsupported HTTP method "' . $http_method . '" in OAuthClientRequest.');
 		}
-
-		$this->client = $client;
 		$this->http_method = $http_method;
+
+		if(!filter_var($url, FILTER_VALIDATE_URL))
+		{
+			throw new OAuthException('Invalid URL "' . $url . '" to OAuthClientRequest.');
+		}
 
 		// :TODO: handle URLs with GET query parameters.
 		// maybe parse them, or throw an error.
@@ -257,8 +238,8 @@ class OAuthClientRequest extends OAuthRequest
 	public function sign()
 	{
 		// :TODO: Only add timestamp+nonce if the signature method requires it.
-		$this->params_oauth['oauth_timestamp'] = $this->client->generateTimestamp();
-		$this->params_oauth['oauth_nonce'] = $this->client->generateNonce();
+		$this->params_oauth['oauth_timestamp'] = time();
+		$this->params_oauth['oauth_nonce'] = OAuthShared::generateNonce();
 
 		$this->params_oauth['oauth_signature_method'] = $this->client->getSignatureMethod()->getName();
 		$this->params_oauth['oauth_signature'] =

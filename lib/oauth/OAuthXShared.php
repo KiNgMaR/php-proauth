@@ -10,7 +10,7 @@ class OAuthShared
 	/**
 	 * Returns $default if $arr[$key] is unset.
 	 **/
-	static public function getIfSet(&$arr, $key, $default = NULL)
+	public static function getIfSet(&$arr, $key, $default = NULL)
 	{
 		if(isset($arr) && is_array($arr) && !empty($arr[$key]))
 		{
@@ -24,7 +24,7 @@ class OAuthShared
 	 * Encodes the given string (or array!) according to RFC 3986, as defined
 	 * by the OAuth Core specs section 3.6. "Percent Encoding".
 	 **/
-	static public function urlEncode($input)
+	public static function urlEncode($input)
 	{
 		if(is_array($input))
 		{
@@ -51,7 +51,7 @@ class OAuthShared
 	/**
 	 * Works similarly to http_build_query, but uses our custom URL encoding method.
 	 **/
-	static public function joinParametersMap(array $params)
+	public static function joinParametersMap(array $params)
 	{
 		$str = '';
 
@@ -70,7 +70,7 @@ class OAuthShared
 	/**
 	 * URL decodes the given string (or array!)...
 	 **/
-	static public function urlDecode($input)
+	public static function urlDecode($input)
 	{
 		if(is_array($input))
 		{
@@ -96,7 +96,7 @@ class OAuthShared
 	 * and replaces characters in parameter names, which is unacceptable.
 	 * @return array
 	 **/
-	static public function splitParametersMap($input)
+	public static function splitParametersMap($input)
 	{
 		$result = array();
 
@@ -120,7 +120,7 @@ class OAuthShared
 	/**
 	 * Returns a random string consisting of letters and numbers
 	 **/
-	static public function randomString($length)
+	public static function randomString($length)
 	{
 		$s = '';
 		for($i = 0; $i < $length; $i++)
@@ -138,6 +138,21 @@ class OAuthShared
 		return $s;
 	}
 
+	/**
+	 * Generates and returns a most probably unique nonce with a length of about 27 characters.
+	 **/
+	public static function generateNonce()
+	{
+		$nonce = uniqid(mt_rand()) . '/' . microtime(true);
+		$nonce = base64_encode(sha1($nonce, true));
+		$nonce = rtrim($nonce, '=');
+		return $nonce;
+	}
+
+	/**
+	 * Creates and configures a curl resource/instance in $ch
+	 * so it can be used as an OAuth client.
+	 **/
 	public static function setUpCurl(&$ch)
 	{
 		$ch = curl_init();
@@ -168,7 +183,7 @@ class OAuthShared
 	 * Splits the headers off the $body of an HTTP response. Splits the headers
 	 * into the $headers array and fills out $status_code.
 	 **/
-	static public function splitHttpResponse($_except_class, $response, array &$headers, &$body, &$status_code)
+	public static function splitHttpResponse($_except_class, $response, array &$headers, &$body, &$status_code)
 	{
 		// some boring checks, etc:
 		$headers_end = strpos($response, "\r\n\r\n");
