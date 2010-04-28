@@ -34,7 +34,7 @@ abstract class OAuthClientBase
 	 **/
 	public function createRequest($url, array $get_params = array(), array $post_params = array())
 	{
-		$req = new OAuthClientRequest($this, (count($_POST) > 0 ? 'POST' : 'GET'), $url);
+		$req = new OAuthClientRequest($this, (count($post_params) > 0 ? 'POST' : 'GET'), $url);
 
 		$req->setGetParameters($get_params);
 		$req->setPostParameters($post_params);
@@ -335,7 +335,7 @@ class OAuthCurlClient extends OAuthClientBase
 		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
 
 		// Add POST parameters, if there are any.
-		if($req->getHTTPMethod() == 'POST')
+		if($req->getHttpMethod() == 'POST')
 		{
 			$http_headers[] = 'Expect:'; // avoid stupid HTTP status code 100.
 			$http_headers[] = 'Content-Type: application/x-www-form-urlencoded';

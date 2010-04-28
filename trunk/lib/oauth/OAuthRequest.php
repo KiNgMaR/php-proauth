@@ -34,7 +34,7 @@ class OAuthRequest
 	public function getSignatureBaseString()
 	{
 		$parts = array(
-			$this->getHTTPMethod(),
+			$this->getHttpMethod(),
 			$this->getRequestUrl(true),
 			$this->getSignableParametersString()
 		);
@@ -124,7 +124,7 @@ class OAuthRequest
 	/**
 	 * @return string
 	 **/
-	public function getHTTPMethod()
+	public function getHttpMethod()
 	{
 		return strtoupper($this->http_method);
 	}

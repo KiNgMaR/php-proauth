@@ -26,9 +26,17 @@ class OAuth2Request
 	/**
 	 * @return string
 	 **/
-	public function getHTTPMethod()
+	public function getHttpMethod()
 	{
 		return strtoupper($this->http_method);
+	}
+
+	/**
+	 * @return string
+	 **/
+	public function getRequestUrl()
+	{
+		return $this->request_url;
 	}
 
 	/**
