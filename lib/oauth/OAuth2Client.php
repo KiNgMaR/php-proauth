@@ -11,6 +11,7 @@ if(!defined('_OAUTH2_LIB_DIR'))
 }
 
 require_once _OAUTH2_LIB_DIR . 'OAuth2Util.php';
+require_once _OAUTH2_LIB_DIR . 'OAuth2Signature.php';
 
 
 /* some constants for OAuth2AccessTokenObtainer's constructor */
@@ -84,7 +85,7 @@ abstract class OAuth2ClientBase
 	public function setClientId($id, $secret = NULL)
 	{
 		$this->client_id = (string)$id;
-		$this->secret = (string)$secret;
+		$this->client_secret = (string)$secret;
 	}
 
 	public function getAuthEndpointUrl() { return $this->url_authorization; }
@@ -107,6 +108,18 @@ abstract class OAuth2ClientBase
 	{
 		return $this->access_secret_type;
 	}
+
+	public function _setAccessToken(OAuth2AccessToken $token)
+	{
+		$this->access_token = $token;
+	}
+
+	public function getAccessToken()
+	{
+		return $this->access_token;
+	}
+
+	abstract public function doSimplePostRequest($url, array $post_params);
 }
 
 
@@ -121,7 +134,26 @@ class OAuth2CurlClient extends OAuth2ClientBase
 		OAuthShared::setUpCurl($this->curl_handle);
 	}
 
+	public function doSimplePostRequest($url, array $post_params)
+	{
+		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
 
+		$http_headers[] = 'Expect:'; // avoid stupid HTTP status code 100.
+		$http_headers[] = 'Content-Type: application/x-www-form-urlencoded';
+
+		curl_setopt($this->curl_handle, CURLOPT_POST, true);
+		curl_setopt($this->curl_handle, CURLOPT_POSTFIELDS, OAuthShared::joinParametersMap($post_params));
+
+		$response = curl_exec($this->curl_handle);
+		$info = curl_getinfo($this->curl_handle);
+
+		if(empty($response) || OAuthShared::getIfSet($info, 'http_code') == 0)
+		{
+			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($this->curl_handle), 0);
+		}
+
+		return $response;
+	}
 }
 
 
@@ -212,6 +244,11 @@ class OAuth2AccessTokenObtainer
 	 **/
 	public function webFlowGetRedirectUrl(array $additional_params = array())
 	{
+		if($this->flow_type != 'user_agent' && $this->flow_type != 'web_server')
+		{
+			throw new Exception('You cannot use webFlowGetRedirectUrl() with authentication flow types other than user_agent and web_server.');
+		}
+
 		$url = $this->client->getAuthEndpointUrl();
 
 		if(empty($url))
@@ -261,18 +298,122 @@ class OAuth2AccessTokenObtainer
 	 **/
 	public function webFlowRedirect(array $additional_params = array())
 	{
+		$url = $this->webFlowGetRedirectUrl($additional_params);
 		header('HTTP/1.0 302 Found');
-		header('Location: ' . $this->webFlowGetRedirectUrl($additional_params));
+		header('Location: ' . $url);
 	}
 
 	/**
 	 * Used for the web_server flow. Call this to extract the information from the
 	 * query string the authorization server put together.
 	 * If the user authorized the app, you can use @getStateData etc.
+	 * IMPORTANT: Before calling this, you need to use setRedirectUrl to set the redirect URL to
+	 * the exact same value as you did during the first redirect request (i.e. call to webFlowRedirect).
 	 **/
 	public function webServerDidUserAuthorize()
 	{
-		
+		if($this->flow_type != 'web_server')
+		{
+			throw new Exception('You cannot use webServerDidUserAuthorize() with an authentication flow type other than web_server.');
+		}
+
+		// extract the state string (= user data):
+		$this->state_string = OAuthShared::getIfSet($_GET, 'state', '');
+
+		// check for the error parameter:
+		$error = OAuthShared::getIfSet($_GET, 'error');
+
+		if($error == 'user_denied')
+		{
+			return false;
+		}
+		elseif(!empty($error))
+		{
+			throw new OAuth2Exception('Unknown error parameter!', $error);
+		}
+
+		$code = OAuthShared::getIfset($_GET, 'code');
+
+		if(empty($code))
+		{
+			throw new OAuth2Exception('Missing code parameter! The auth server should have redirect here using ?code=xxxx');
+		}
+
+		// no error parameter has been passed, we have a code, so the user should have authorized the app.
+
+		$params = array('type' => 'web_server',
+			'client_id' => $this->client->getClientId(),
+			'code' => $code);
+
+		if(empty($params['client_id']))
+		{
+			throw new OAuth2Exception('The client class instance is missing a client ID.');
+		}
+
+		$clnt_secret = $this->client->getClientSecret();
+		if(!empty($clnt_secret))
+		{
+			$params['client_secret'] = $clnt_secret;
+		}
+
+		if(!empty($this->redirect_url))
+		{
+			$params['redirect_uri'] = $this->redirect_url;
+		}
+
+		if(!is_null($this->client->getAccessSecretType()))
+		{
+			// the user_agent flow can optionally receive a secret with the access token.
+			$params['secret_type'] = $this->client->getAccessSecretType()->getName();
+		}
+
+		$http_response = $this->client->doSimplePostRequest($this->client->getTokenEndpointURL(), $params);
+
+		$headers = array();
+		$body = '';
+		$status_code = 0;
+
+		OAuthShared::splitHttpResponse('OAuth2Exception', $http_response, $headers, $body, $status_code);
+		unset($http_response);
+
+		if($status_code != 200)
+		{
+			throw new OAuth2Exception('While fetching the access token, the server did not return an OK status code.');
+		}
+
+		/*foreach($headers as $name => $value)
+		{
+			if(strcasecmp($name, 'Content-Type') == 0 && $name != 'application/x-www-form-urlencoded')
+			{
+				throw new OAuth2Exception('While fetching the access token, the server did not reply with a correctly formatted answer.');
+			}
+		}
+		Yay for servers not adhering to the specs when it comes to simple things like the correct content-type.
+		*/
+
+		// get response params:
+		$params = OAuthShared::splitParametersMap($body);
+
+		if(empty($params['access_token']))
+		{
+			throw new OAuth2Exception('The server replied, but did not deliver an access token.');
+		}
+
+		if(empty($params['access_token_secret']) && !is_null($this->client->getAccessSecretType()))
+		{
+			throw new OAuth2Exception('We requested a cryptographic secret with the token, but the server did not deliver one.');
+		}
+
+		$expires = (int)OAuthShared::getIfSet($params, 'expires_in', 0);
+		if($expires > 0) $expires += time();
+
+		$token = new OAuth2AccessToken($params['access_token'], $expires,
+			OAuthShared::getIfSet($params, 'refresh_token', ''),
+			OAuthShared::getIfSet($params, 'access_token_secret', ''));
+
+		$this->client->_setAccessToken($token);
+
+		return true;
 	}
 
 	

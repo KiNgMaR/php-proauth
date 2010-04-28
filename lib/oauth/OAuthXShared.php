@@ -44,7 +44,7 @@ class OAuthShared
 		}
 		else
 		{
-			throw new OAuthException('Unsupported parameter type for ' . __FUNCTION__);
+			throw new Exception('Unsupported parameter type for ' . __FUNCTION__);
 		}
 	}
 
@@ -87,7 +87,7 @@ class OAuthShared
 		}
 		else
 		{
-			throw new OAuthException('Unsupported parameter type for ' . __FUNCTION__);
+			throw new Exception('Unsupported parameter type for ' . __FUNCTION__);
 		}
 	}
 
@@ -110,10 +110,6 @@ class OAuthShared
 				if(count($pair) == 2)
 				{
 					$result[self::urlDecode($pair[0])] = self::urlDecode(self::getIfSet($pair, 1, ''));
-				}
-				else
-				{
-					throw new OAuthException('Invalid parameter to splitParametersMap.');
 				}
 			}
 		}
@@ -172,7 +168,7 @@ class OAuthShared
 	 * Splits the headers off the $body of an HTTP response. Splits the headers
 	 * into the $headers array and fills out $status_code.
 	 **/
-	static public function splitHttpResponse($response, array &$headers, &$body, &$status_code)
+	static public function splitHttpResponse($_except_class, $response, array &$headers, &$body, &$status_code)
 	{
 		// some boring checks, etc:
 		$headers_end = strpos($response, "\r\n\r\n");
@@ -191,7 +187,7 @@ class OAuthShared
 		// parse and verify the first line:
 		if(!preg_match('~^HTTP/(\d\.\d)\s+(\d+)\s+([ \w]+)\r?\n~i', $response, $match))
 		{
-			throw new OAuthException('Failed to parse HTTP response: No HTTP/ found.');
+			throw new $_except_class('Failed to parse HTTP response: No HTTP/ found.');
 		}
 		list(, $http_version, $status_code, $response_descr) = $match;
 		$status_code = (int)$status_code;
@@ -212,7 +208,7 @@ class OAuthShared
 			{
 				if(empty($header_name))
 				{
-					throw new OAuthException('Error while parsing HTTP response headers: Continuated header without name.');
+					throw new $_except_class('Error while parsing HTTP response headers: Continuated header without name.');
 				}
 				$headers[$header_name] .= ' ' . $match[1];
 			}
@@ -223,7 +219,7 @@ class OAuthShared
 			}
 			else
 			{
-				throw new OAuthException('Error while parsing HTTP response headers: Weird-looking/unsupported header line.');
+				throw new $_except_class('Error while parsing HTTP response headers: Weird-looking/unsupported header line.');
 			}
 		}
 

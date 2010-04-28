@@ -508,7 +508,7 @@ class OAuthClientResponse
 		$body = '';
 		$status_code = 0;
 
-		OAuthShared::splitHttpResponse($complete_response_str, $headers, $body, $status_code);
+		OAuthShared::splitHttpResponse('OAuthException', $complete_response_str, $headers, $body, $status_code);
 		unset($complete_response_str);
 
 		return new self($client, $headers, $body, $status_code);
