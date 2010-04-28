@@ -39,7 +39,7 @@ class OAuthRequest
 			$this->getSignableParametersString()
 		);
 
-		$parts = OAuthUtil::urlEncode($parts);
+		$parts = OAuthShared::urlEncode($parts);
 
 		return implode('&', $parts);
 	}
@@ -59,7 +59,7 @@ class OAuthRequest
 
 		// again: we do not support multiple parameters with the same name!
 
-		return OAuthUtil::joinParametersMap($params);
+		return OAuthShared::joinParametersMap($params);
 	}
 
 	/**
@@ -67,7 +67,7 @@ class OAuthRequest
 	 **/
 	public function getOAuthVersion()
 	{
-		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_version', '1.0');
+		return OAuthShared::getIfSet($this->params_oauth, 'oauth_version', '1.0');
 	}
 
 	/**
@@ -75,7 +75,7 @@ class OAuthRequest
 	 **/
 	public function getConsumerKey()
 	{
-		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_consumer_key', false);
+		return OAuthShared::getIfSet($this->params_oauth, 'oauth_consumer_key', false);
 	}
 
 	/**
@@ -83,8 +83,8 @@ class OAuthRequest
 	 **/
 	public function getNonceAndTimeStamp(&$nonce, &$timestamp)
 	{
-		$nonce = OAuthUtil::getIfSet($this->params_oauth, 'oauth_nonce', false);
-		$timestamp = OAuthUtil::getIfSet($this->params_oauth, 'oauth_timestamp', false);
+		$nonce = OAuthShared::getIfSet($this->params_oauth, 'oauth_nonce', false);
+		$timestamp = OAuthShared::getIfSet($this->params_oauth, 'oauth_timestamp', false);
 
 		return (!empty($nonce) && !empty($timestamp));
 	}
@@ -94,7 +94,7 @@ class OAuthRequest
 	 **/
 	public function getSignatureMethod()
 	{
-		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_signature_method', '');
+		return OAuthShared::getIfSet($this->params_oauth, 'oauth_signature_method', '');
 	}
 
 	/**
@@ -102,7 +102,7 @@ class OAuthRequest
 	 **/
 	public function getSignatureParameter()
 	{
-		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_signature', '');
+		return OAuthShared::getIfSet($this->params_oauth, 'oauth_signature', '');
 	}
 
 	/**
