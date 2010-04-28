@@ -144,7 +144,7 @@ abstract class OAuth2ClientBase
 	 **/
 	public function createRequest($url, array $get_params = array(), array $post_params = array())
 	{
-		$req = new OAuthClientRequest((count($post_params) > 0 ? 'POST' : 'GET'), $url,
+		$req = new OAuth2ClientRequest((count($post_params) > 0 ? 'POST' : 'GET'), $url,
 			$this->getAccessToken(), $this->getAccessSecretType(), $this->getAllowUnprotected());
 
 		$req->setGetParameters($get_params);
@@ -252,7 +252,7 @@ class OAuth2CurlClient extends OAuth2ClientBase
 
 		if(empty($response) || OAuthShared::getIfSet($info, 'http_code') == 0)
 		{
-			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($this->curl_handle), 0);
+			throw new OAuth2Exception('Contacting the remote server failed due to a network error: ' . curl_error($this->curl_handle), 0);
 		}
 
 		return $response;
@@ -574,7 +574,7 @@ class OAuth2ClientRequest extends OAuth2Request
 
 		if(!filter_var($url, FILTER_VALIDATE_URL))
 		{
-			throw new OAuthException('Invalid URL "' . $url . '" to OAuth2ClientRequest.');
+			throw new OAuth2Exception('Invalid URL "' . $url . '" to OAuth2ClientRequest.');
 		}
 
 		if(!$allow_unprotected && is_null($sig_method) &&

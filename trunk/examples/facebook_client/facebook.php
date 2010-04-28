@@ -61,7 +61,15 @@ elseif(isset($_GET['step2']))
 	{
 		/* we should save the access token to the database or something
 			so we can use it later to make calls and stuff */
-		print_r($clnt->getAccessToken());
+		$req = $clnt->createGetRequest('https://graph.facebook.com/me', array('access_token' => $clnt->getAccessToken()->getToken()));
+		$resp = $clnt->executeRequest($req);
+
+		if($resp->getStatusCode() == 200)
+		{
+			$json = json_decode($resp->getBody());
+
+			echo '<pre>' . htmlspecialchars(print_r($json, true)) . '</pre>';
+		}
 	}
 	else
 	{
