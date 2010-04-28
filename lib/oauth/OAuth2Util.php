@@ -5,6 +5,8 @@
  * You should have received a copy of The MIT License in LICENSE.txt with this file.
  */
 
+require_once _OAUTH2_LIB_DIR . 'OAuthXShared.php';
+
 class OAuth2Exception extends Exception
 {
 	protected $error_idf;
