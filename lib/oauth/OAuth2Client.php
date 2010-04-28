@@ -113,12 +113,16 @@ abstract class OAuth2ClientBase
 
 class OAuth2CurlClient extends OAuth2ClientBase
 {
+	protected $curl_handle;
+
 	public function __construct(OAuth2AccessToken $access_token = NULL)
 	{
 		parent::__construct($access_token);
 
 		OAuthShared::setUpCurl($this->curl_handle);
 	}
+
+
 }
 
 
@@ -135,7 +139,7 @@ class OAuth2AccessTokenObtainer
 	/**
 	 * Used for: user_agent and web_server
 	 **/
-	protected $state_string;
+	protected $state_string = '';
 
 	/**
 	 * Used for: user_agent and web_server
@@ -193,6 +197,8 @@ class OAuth2AccessTokenObtainer
 	{
 		$this->state_string = (string)$data;
 	}
+
+	public function getStateData() { return $this->state_string; }
 
 	public function setImmediate($bool)
 	{
@@ -259,6 +265,18 @@ class OAuth2AccessTokenObtainer
 		header('HTTP/1.0 302 Found');
 		header('Location: ' . $this->webFlowGetRedirectUrl($additional_params));
 	}
+
+	/**
+	 * Used for the web_server flow. Call this to extract the information from the
+	 * query string the authorization server put together.
+	 * If the user authorized the app, you can use @getStateData etc.
+	 **/
+	public function webServerDidUserAuthorize()
+	{
+		
+	}
+
+	
 }
 
 
