@@ -137,7 +137,57 @@ abstract class OAuth2ClientBase
 		return new OAuth2AccessTokenObtainer($flow_type, $this);
 	}
 
-	abstract public function doSimplePostRequest($url, array $post_params);
+	/**
+	 * returns an OAuth2ClientRequest instance that can be set up further, as necessary, and then
+	 * be submitted.
+	 * @return OAuth2ClientRequest
+	 **/
+	public function createRequest($url, array $get_params = array(), array $post_params = array())
+	{
+		$req = new OAuthClientRequest((count($post_params) > 0 ? 'POST' : 'GET'), $url,
+			$this->getAccessToken(), $this->getAccessSecretType(), $this->getAllowUnprotected());
+
+		$req->setGetParameters($get_params);
+		$req->setPostParameters($post_params);
+
+		return $req;
+	}
+
+	/**
+	 * @see createRequest
+	 * @return OAuth2ClientRequest
+	 **/
+	public function createPostRequest($url, array $params)
+	{
+		if(count($params) == 0)
+		{
+			throw new OAuth2Exception('Can not make a POST request without any parameters.');
+		}
+
+		return $this->createRequest($url, array(), $params);
+	}
+
+	/**
+	 * @see createRequest
+	 * @return OAuth2ClientRequest
+	 **/
+	public function createGetRequest($url, array $params = array())
+	{
+		return $this->createRequest($url, $params, array());
+	}
+
+	/**
+	 * @return OAuth2ClientResponse
+	 **/
+	abstract public function executeRequest(OAuth2ClientRequest $req);
+	/**
+	 * @return string, response incl. headers
+	 **/
+	abstract public function doSimplePostRequest($url, array $post_params, array $request_headers = array());
+	/**
+	 * @return string, response incl. headers
+	 **/
+	abstract public function doSimpleGetRequest($url, array $get_params, array $request_headers = array());
 }
 
 
@@ -152,15 +202,50 @@ class OAuth2CurlClient extends OAuth2ClientBase
 		OAuthShared::setUpCurl($this->curl_handle);
 	}
 
-	public function doSimplePostRequest($url, array $post_params)
+	public function executeRequest(OAuth2ClientRequest $req)
 	{
+		$req->sign();
+
+		$headers = array(
+				'Authorization: ' . $req->getAuthorizationHeader()
+			);
+
+		$raw_response = $this->doSimpleRequest($req->getHttpMethod() == 'POST',
+			$req->getRequestUrl(), $req->getGetParameters(), $req->getPostParameters(),
+			$headers);
+
+		return OAuth2ClientResponse::fromResponseStr($raw_response);
+	}
+
+	protected function doSimpleRequest($post, $url, array $get_params, array $post_params, array $request_headers = array())
+	{
+		$query_str = OAuthShared::joinParametersMap($get_params);
+
+		if(!empty($query_str))
+		{
+			$url .= (strpos($url, '?') === false ? '?' : '&'); // this feels hacky...
+			$url .= $query_str;
+		}
+
 		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
 
-		$http_headers[] = 'Expect:'; // avoid stupid HTTP status code 100.
-		$http_headers[] = 'Content-Type: application/x-www-form-urlencoded';
+		if($post)
+		{
+			$request_headers[] = 'Expect:'; // avoid stupid HTTP status code 100.
+			$request_headers[] = 'Content-Type: application/x-www-form-urlencoded';
 
-		curl_setopt($this->curl_handle, CURLOPT_POST, true);
-		curl_setopt($this->curl_handle, CURLOPT_POSTFIELDS, OAuthShared::joinParametersMap($post_params));
+			curl_setopt($this->curl_handle, CURLOPT_POST, true);
+			curl_setopt($this->curl_handle, CURLOPT_POSTFIELDS, OAuthShared::joinParametersMap($post_params));
+		}
+		else
+		{
+			curl_setopt($this->curl_handle, CURLOPT_POSTFIELDS, array());
+			curl_setopt($this->curl_handle, CURLOPT_HTTPGET, true);
+		}
+
+		$request_headers[] = 'Accept: application/x-www-form-urlencoded, application/json, text/xml, */*';
+
+		curl_setopt($this->curl_handle, CURLOPT_HTTPHEADER, $request_headers);
 
 		$response = curl_exec($this->curl_handle);
 		$info = curl_getinfo($this->curl_handle);
@@ -171,6 +256,16 @@ class OAuth2CurlClient extends OAuth2ClientBase
 		}
 
 		return $response;
+	}
+
+	public function doSimplePostRequest($url, array $post_params, array $request_headers = array())
+	{
+		return $this->doSimpleRequest(true, $url, array(), $post_params, $request_headers);
+	}
+
+	public function doSimpleGetRequest($url, array $get_params, array $request_headers = array())
+	{
+		return $this->doSimpleRequest(false, $url, $get_params, array(), $request_headers);
 	}
 
 	/**
@@ -482,8 +577,8 @@ class OAuth2ClientRequest extends OAuth2Request
 			throw new OAuthException('Invalid URL "' . $url . '" to OAuth2ClientRequest.');
 		}
 
-		if(!$allow_unprotected &&
-			parse_url($url, PHP_URL_SCHEME) != 'https' && is_null($sig_method))
+		if(!$allow_unprotected && is_null($sig_method) &&
+			strcasecmp(parse_url($url, PHP_URL_SCHEME), 'https') != 0)
 		{
 			throw new OAuth2Exception('Trying to make a request without a token secret over an unencrypted channel. ' .
 				'Use OAuth2Client->setAllowUnprotected(true) to allow this.');
@@ -564,3 +659,71 @@ class OAuth2ClientRequest extends OAuth2Request
 
 }
 
+
+class OAuth2ClientResponse
+{
+	protected $headers = array();
+	protected $body;
+	protected $status_code;
+
+	/**
+	 * Constructs a response instance from an HTTP response's headers and body.
+	 **/
+	public function __construct(array $headers, &$body, $status_code = 0)
+	{
+		// copy the body...
+		$this->body = $body;
+
+		// Update this->status_code, if necessary.
+		// some derived classes may have set it already.
+		if($status_code > 0)
+		{
+			$this->status_code = $status_code;
+		}
+
+		// need to lower case all header names :(
+		foreach($headers as $key => $value)
+		{
+			$this->headers[strtolower($key)] = $value;
+		}
+	}
+
+	/**
+	 * Constructs a response instance from a complete HTTP response string, including the headers.
+	 **/
+	public static function fromResponseStr($complete_response_str)
+	{
+		$headers = array();
+		$body = '';
+		$status_code = 0;
+
+		OAuthShared::splitHttpResponse('OAuth2Exception', $complete_response_str, $headers, $body, $status_code);
+		unset($complete_response_str);
+
+		return new self($headers, $body, $status_code);
+	}
+
+	/**
+	 * Returns the HTTP status code. Most probably between 100 and 500-something.
+	 **/
+	public function getStatusCode()
+	{
+		return $this->status_code;
+	}
+
+	/**
+	 * Returns the value of the HTTP header with the name $header_name.
+	 **/
+	public function getHeaderValue($header_name)
+	{
+		return OAuthShared::getIfSet($this->headers, strtolower($header_name), '');
+	}
+
+	/**
+	 * Returns the entire response body as a string.
+	 **/
+	public function getBody()
+	{
+		return $this->body;
+	}
+}
