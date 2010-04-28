@@ -14,7 +14,6 @@ require_once _OAUTH_LIB_DIR . 'OAuthUtil.php';
 require_once _OAUTH_LIB_DIR . 'OAuthRequest.php';
 require_once _OAUTH_LIB_DIR . 'OAuthSignature.php';
 require_once _OAUTH_LIB_DIR . 'OAuthServerBackend.php';
-require_once _OAUTH_LIB_DIR . 'OAuthXShared.php';
 
 
 class OAuthServer
@@ -169,12 +168,12 @@ class OAuthServer
 		$callback_url = OAuthUtil::validateCallbackURL($callback_url);
 
 		// generate a temp secret:
-		$temp_secret = OAuthUtil::randomString(40);
+		$temp_secret = OAuthShared::randomString(40);
 
 		do
 		{
 			// and a temp token:
-			$new_token = new OAuthToken(OAuthUtil::randomString(20), $temp_secret);
+			$new_token = new OAuthToken(OAuthShared::randomString(20), $temp_secret);
 			// and validate it with the backend to make sure it's unique:
 			$result = $this->backend->addTempToken($consumer, $new_token, $callback_url);
 		} while($result == OAuthServerBackend::RESULT_DUPE);
@@ -304,7 +303,7 @@ class OAuthServer
 
 		$this->checkSignature($req, $consumer, $token);
 
-		$access_secret = OAuthUtil::randomString(40);
+		$access_secret = OAuthShared::randomString(40);
 
 		if($this->backend->checkVerifier($token_str, $req->getVerifierParameter()) != OAuthServerBackend::RESULT_OK)
 		{
@@ -313,7 +312,7 @@ class OAuthServer
 
 		do
 		{
-			$new_token = new OAuthToken(OAuthUtil::randomString(20), $access_secret);
+			$new_token = new OAuthToken(OAuthShared::randomString(20), $access_secret);
 			$result = $this->backend->exchangeTempToken($consumer, $token, $new_token);
 		} while($result == OAuthServerBackend::RESULT_DUPE);
 
@@ -383,7 +382,7 @@ class OAuthServerRequest extends OAuthRequest
 		parent::__construct();
 
 		// Determine HTTP method...
-		$this->http_method = OAuthUtil::getIfSet($_SERVER, 'REQUEST_METHOD');
+		$this->http_method = OAuthShared::getIfSet($_SERVER, 'REQUEST_METHOD');
 
 		if(empty($this->http_method))
 		{
@@ -393,14 +392,14 @@ class OAuthServerRequest extends OAuthRequest
 
 
 		// Determine request URL:
-		$host = OAuthUtil::getIfSet($_SERVER, 'HTTP_HOST');
+		$host = OAuthShared::getIfSet($_SERVER, 'HTTP_HOST');
 
 		if(empty($host))
 		{
 			throw new OAuthException('The requesting client did not send the HTTP Host header which is required by this implementation.', 400);
 		}
 
-		$scheme = (OAuthUtil::getIfSet($_SERVER, 'HTTPS', 'off') === 'on' ? 'https' : 'http');
+		$scheme = (OAuthShared::getIfSet($_SERVER, 'HTTPS', 'off') === 'on' ? 'https' : 'http');
 
 		$port = (int)$_SERVER['SERVER_PORT'];
 
@@ -443,7 +442,7 @@ class OAuthServerRequest extends OAuthRequest
 		// extract oauth parameters from the Authorization
 		// HTTP header. If present, these take precedence over
 		// GET and POST parameters.
-		$header_parameters = OAuthUtil::getIfSet($page_request_headers, 'authorization');
+		$header_parameters = OAuthShared::getIfSet($page_request_headers, 'authorization');
 
 		if(!empty($header_parameters))
 		{
@@ -452,7 +451,7 @@ class OAuthServerRequest extends OAuthRequest
 
 			if(is_array($header_parameters) && count($header_parameters) > 0)
 			{
-				$realm = OAuthUtil::getIfSet($header_parameters, 'realm');
+				$realm = OAuthShared::getIfSet($header_parameters, 'realm');
 				unset($header_parameters['realm']);
 
 				$this->params_oauth = $header_parameters;
@@ -468,12 +467,12 @@ class OAuthServerRequest extends OAuthRequest
 		// situation out in the wild where that would happen. PHP uses
 		// urldecode() to decode the parameters, which works in accordance to
 		// section 3.4.1.3.1. of the Core specs.
-		// C.f. OAuthUtil::urlDecode()
+		// C.f. OAuthShared::urlDecode()
 
 		$this->params_post = array();
 		$this->params_get = array();
 
-		$content_type = trim(OAuthUtil::getIfSet($page_request_headers, 'content-type'));
+		$content_type = trim(OAuthShared::getIfSet($page_request_headers, 'content-type'));
 
 		if(preg_match('~^application/x-www-form-urlencoded~i', $content_type))
 		{
@@ -560,7 +559,7 @@ class OAuthServerRequest extends OAuthRequest
 	 **/
 	public function getCallbackParameter()
 	{
-		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_callback', '');
+		return OAuthShared::getIfSet($this->params_oauth, 'oauth_callback', '');
 	}
 
 	/**
@@ -568,7 +567,7 @@ class OAuthServerRequest extends OAuthRequest
 	 **/
 	public function getTokenParameter()
 	{
-		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_token', '');
+		return OAuthShared::getIfSet($this->params_oauth, 'oauth_token', '');
 	}
 
 	/**
@@ -576,7 +575,7 @@ class OAuthServerRequest extends OAuthRequest
 	 **/
 	public function getVerifierParameter()
 	{
-		return OAuthUtil::getIfSet($this->params_oauth, 'oauth_verifier', '');
+		return OAuthShared::getIfSet($this->params_oauth, 'oauth_verifier', '');
 	}
 }
 

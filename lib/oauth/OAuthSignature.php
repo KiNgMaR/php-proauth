@@ -68,7 +68,7 @@ class OAuthSignaturePlainText extends OAuthSignatureMethod
 			is_object($token) ? $token->getSecret() : ''
 		);
 
-		$key_parts = OAuthUtil::urlEncode($key_parts);
+		$key_parts = OAuthShared::urlEncode($key_parts);
 		return implode('&', $key_parts);
 	}
 }
@@ -100,7 +100,7 @@ class OAuthSignatureHMACSHA1 extends OAuthSignatureMethod
 			is_object($token) ? $token->getSecret() : ''
 		);
 
-		$key_parts = OAuthUtil::urlEncode($key_parts);
+		$key_parts = OAuthShared::urlEncode($key_parts);
 		$key = implode('&', $key_parts);
 
 		if(function_exists('hash_hmac'))
@@ -175,7 +175,7 @@ class OAuthSignatureHMACSHA256 extends OAuthSignatureMethod
 			is_object($token) ? $token->getSecret() : ''
 		);
 
-		$key_parts = OAuthUtil::urlEncode($key_parts);
+		$key_parts = OAuthShared::urlEncode($key_parts);
 		$key = implode('&', $key_parts);
 
 		return base64_encode(hash_hmac('sha256', $base_string, $key, true));

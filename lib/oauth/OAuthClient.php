@@ -13,7 +13,6 @@ if(!defined('_OAUTH_LIB_DIR'))
 require_once _OAUTH_LIB_DIR . 'OAuthUtil.php';
 require_once _OAUTH_LIB_DIR . 'OAuthRequest.php';
 require_once _OAUTH_LIB_DIR . 'OAuthSignature.php';
-require_once _OAUTH_LIB_DIR . 'OAuthXShared.php';
 
 
 abstract class OAuthClientBase
@@ -300,7 +299,7 @@ class OAuthClientRequest extends OAuthRequest
 		{
 			// we could also spread the header over multiple lines, but some very
 			// stupid HTTP servers may not support that, so all goes on one line!
-			$result .= OAuthUtil::urlEncode($key) . '="' . OAuthUtil::urlEncode($value) . '", ';
+			$result .= OAuthShared::urlEncode($key) . '="' . OAuthShared::urlEncode($value) . '", ';
 		}
 
 		return rtrim($result, ', ');
@@ -349,7 +348,7 @@ class OAuthCurlClient extends OAuthClientBase
 
 		// Add GET parameters to the URL:
 		$url = $req->getRequestUrl(true);
-		$query_str = OAuthUtil::joinParametersMap($req->getGetParameters());
+		$query_str = OAuthShared::joinParametersMap($req->getGetParameters());
 		if(!empty($query_str)) $url .= '?' . $query_str;
 
 		curl_setopt($this->curl_handle, CURLOPT_URL, $url);
@@ -361,7 +360,7 @@ class OAuthCurlClient extends OAuthClientBase
 			$http_headers[] = 'Content-Type: application/x-www-form-urlencoded';
 
 			curl_setopt($this->curl_handle, CURLOPT_POST, true);
-			curl_setopt($this->curl_handle, CURLOPT_POSTFIELDS, OAuthUtil::joinParametersMap($req->getPostParameters()));
+			curl_setopt($this->curl_handle, CURLOPT_POSTFIELDS, OAuthShared::joinParametersMap($req->getPostParameters()));
 		}
 		else
 		{
@@ -377,7 +376,7 @@ class OAuthCurlClient extends OAuthClientBase
 		$response = curl_exec($this->curl_handle);
 		$info = curl_getinfo($this->curl_handle);
 
-		if(empty($response) || OAuthUtil::getIfSet($info, 'http_code') == 0)
+		if(empty($response) || OAuthShared::getIfSet($info, 'http_code') == 0)
 		{
 			// :TODO: not happy we throw this one here, should be moved to the base client class.
 			throw new OAuthException('Contacting the remote server failed due to a network error: ' . curl_error($this->curl_handle), 0);
@@ -437,9 +436,9 @@ class OAuthClientResponse
 		$body_params = array();
 
 		// If the response content type is www-form-urlencoded, parse the body:
-		if(preg_match('~^application/x-www-form-urlencoded~i', OAuthUtil::getIfSet($headers, 'content-type', '')))
+		if(preg_match('~^application/x-www-form-urlencoded~i', OAuthShared::getIfSet($headers, 'content-type', '')))
 		{
-			$body_params = OAuthUtil::splitParametersMap($body);
+			$body_params = OAuthShared::splitParametersMap($body);
 		}
 
 		if($this->status_code == 400 || $this->status_code == 401)
@@ -509,7 +508,7 @@ class OAuthClientResponse
 		$body = '';
 		$status_code = 0;
 
-		OAuthUtil::splitHttpResponse($complete_response_str, $headers, $body, $status_code);
+		OAuthShared::splitHttpResponse($complete_response_str, $headers, $body, $status_code);
 		unset($complete_response_str);
 
 		return new self($client, $headers, $body, $status_code);
@@ -528,7 +527,7 @@ class OAuthClientResponse
 	 **/
 	public function getHeaderValue($header_name)
 	{
-		return OAuthUtil::getIfSet($this->headers, strtolower($header_name), '');
+		return OAuthShared::getIfSet($this->headers, strtolower($header_name), '');
 	}
 
 	/**
@@ -537,7 +536,7 @@ class OAuthClientResponse
 	 **/
 	public function getBodyParamValue($body_param_name)
 	{
-		return OAuthUtil::getIfSet($this->body_params, $body_param_name, '');
+		return OAuthShared::getIfSet($this->body_params, $body_param_name, '');
 	}
 
 	/**
@@ -560,7 +559,7 @@ class OAuthClientResponse
 	{
 		try
 		{
-			$this->body_params = OAuthUtil::splitParametersMap($this->body);
+			$this->body_params = OAuthShared::splitParametersMap($this->body);
 		}
 		catch(OAuthException $ex)
 		{
