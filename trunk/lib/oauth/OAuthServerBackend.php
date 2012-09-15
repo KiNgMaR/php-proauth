@@ -78,5 +78,10 @@ abstract class OAuthServerBackend
 	 * @return int Return RESULT_OK or RESULT_ERROR.
 	 **/
 	abstract public function checkVerifier($token_str, $verifier);
+
+	/**
+	 * @return int Return RESULT_OK or RESULT_ERROR.
+	 **/
+	abstract public function validateCallbackURL($token_str, $url);
 }
 
