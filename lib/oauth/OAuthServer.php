@@ -165,7 +165,6 @@ class OAuthServer
 
 		// store a callback_url, if we have one:
 		$callback_url = $req->getCallbackParameter();
-		$callback_url = OAuthUtil::validateCallbackURL($callback_url);
 
 		// generate a temp secret:
 		$temp_secret = OAuthShared::randomString(40);
@@ -200,8 +199,6 @@ class OAuthServer
 	{
 		$consumer = NULL;
 
-		$callback_url = OAuthUtil::validateCallbackURL($callback_url);
-
 		if($this->backend->checkTempToken($token_str, $user_idf, $callback_url, $consumer) != OAuthServerBackend::RESULT_OK)
 		{
 			throw new OAuthException('The token is invalid, or has expired.', 401, 'token_rejected');
@@ -221,9 +218,9 @@ class OAuthServer
 		if($authorized)
 		{
 			$callback_url = $this->backend->getTempTokenCallback($token_str, $user_idf);
-			$callback_url = OAuthUtil::validateCallbackURL($callback_url);
 
-			if(empty($callback_url))
+			if($this->backend->validateCallbackURL($token_str, $callback_url) != OAuthServerBackend::RESULT_OK ||
+				($callback_url != 'oob' && !filter_var($callback_url, FILTER_VALIDATE_URL)))
 			{
 				throw new OAuthException('The backend failed to deliver a valid callback for this temporary token!');
 			}

@@ -647,7 +647,7 @@ class OAuth2ClientRequest extends OAuth2Request
 		{
 			if(strpos($value, '"') !== false)
 			{
-				throw new OAuth2Excpeption('There\'s a quote char in one of the parameters for the Authorization header. This isn\'t supposed to happen.');
+				throw new OAuth2Exception('There\'s a quote char in one of the parameters for the Authorization header. This isn\'t supposed to happen.');
 			}
 
 			// :TODO: find out whether this really is not supposed to be urlEncoded.

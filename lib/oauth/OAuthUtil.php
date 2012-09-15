@@ -235,38 +235,6 @@ class OAuthUtil
 
 		return $scheme . '://' . $host . $path;
 	}
-
-	/**
-	 * Validates the given URL. Returns the validated URL.
-	 * It is advised to always use the return value.
-	 **/
-	static public function validateCallbackURL($url)
-	{
-		if(empty($url))
-		{
-			return '';
-		}
-
-		if($url === 'oob')
-		{
-			// "out-of-band configuration", such as a desktop client
-			// that doesn't have a http:// redir URL.
-			return $url;
-		}
-
-		if(filter_var($url, FILTER_VALIDATE_URL))
-		{
-			$parts = parse_url($url);
-			$scheme = strtolower($parts['scheme']);
-
-			if($scheme == 'http' || $scheme == 'https')
-			{
-				return $url;
-			}
-		}
-
-		throw new OAuthException('An invalid callback URL has been used.', 401);
-	}
 }
 
 
