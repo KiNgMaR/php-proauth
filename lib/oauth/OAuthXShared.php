@@ -185,6 +185,13 @@ class OAuthShared
 	 **/
 	public static function splitHttpResponse($_except_class, $response, array &$headers, &$body, &$status_code)
 	{
+		// ignore leading proxy response headers:
+		// patch by D. of SC 2012-09-15
+		if(preg_match('~^(HTTP/\d\.\d\s+\d+\s+[ \w]+\r?\n\r?\n)HTTP/~i', $response, $match))
+		{
+			$response = substr($response, strlen($match[1]));
+		}
+
 		// some boring checks, etc:
 		$headers_end = strpos($response, "\r\n\r\n");
 
